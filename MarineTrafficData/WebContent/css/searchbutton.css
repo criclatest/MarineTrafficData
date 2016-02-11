@@ -1,0 +1,27 @@
+
+	
+	.tfbutton4 {
+		margin: 0;
+		padding: 0;
+		width:28px;
+		height:28px;
+		font-family: Arial, Helvetica, sans-serif;
+		font-size:14px;
+		font-weight:bold;
+		outline: none;
+		cursor: pointer;
+		text-align: center;
+		text-decoration: none;
+		color: #ffffff;
+		border: solid 1px #0076a3; border-right:0px;
+		border-top-right-radius: 5px 5px;
+		border-bottom-right-radius: 5px 5px;
+		background: #065785 url('s.png');
+	}
+	/* Fixes submit button height problem in Firefox */
+	.tfbutton4::-moz-focus-inner {
+	  border: 0;
+	}
+	.tfclear{
+		clear:both;
+	}

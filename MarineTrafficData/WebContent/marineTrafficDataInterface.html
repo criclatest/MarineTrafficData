@@ -1,0 +1,758 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Marine Traffic Data Interface</title>
+<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.5/leaflet.css" />
+<link rel="stylesheet" href="css/iThing.css" type="text/css" />
+<link rel="stylesheet" href="css/searchbutton.css" />
+
+<script src="http://cdn.leafletjs.com/leaflet-0.7.5/leaflet.js"></script>
+<!--<script src="script/jquery-1.7.1.js"></script>
+<script src="script/jquery-ui.js"></script>-->
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script src="http://code.jquery.com/ui/1.11.3/jquery-ui.min.js"></script>
+
+<script src="script/jQDateRangeSlider-min.js"></script>
+<script src="script/dateRange.js"></script>
+<script src="http://leaflet.github.io/Leaflet.draw/leaflet.draw.js"></script>
+<script src="script/Edit.SimpleShape.js"></script>
+<script src="script/Edit.Rectangle.js"></script>
+<script src="script/AnimatedMarker.js"></script>
+
+<!-- For expandable checkbox -->
+ <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+ 
+  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+
+<style>
+body {
+         padding: 0;
+         margin: 0;
+}
+html, body, #map {
+            height: 98%;
+            width: 100%;
+}
+#header {
+    background-color:#065785;
+    color:white;
+    padding:1px;
+}
+.searchVoyage {
+    padding: 6px 8px;
+    font: 14px/16px Arial, Helvetica, sans-serif;
+    background: #065785;
+    
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    border-radius: 5px;
+}
+.searchVoyage h4 {
+    margin: 0 0 5px;
+    color: #777;
+}
+.ok {
+
+    background: rgba(255,255,255, 1);
+    border-radius: 4px;
+    cursor: pointer;
+    height: 22px;
+    width: 22px;
+   
+    position: relative;
+    z-index: 1;
+}
+/* Popover */
+  .popover {
+      width:200px;
+      height: 250px;
+      overflow:auto;
+      position:fixed;
+  }
+  .popover-title {
+    background-color: #065785; 
+    color: #FFFFFF; 
+}
+</style>
+</head>
+<body>
+<div id="header">
+<div> 
+    	<span style="font-size: 30px">
+			&nbsp;&nbsp;<!-- <img src='images/s11.png' style='width:30px;height:40px;padding-bottom:5px'> -->&nbsp;Marine Traffic Interactive Interface 
+		</span> 
+	</div>
+    
+</div>
+<div id="map"></div>
+<script>
+function changeMap(id) {
+	if(id == 'vectorId') {
+		location.href = "vectorTiles.html";
+	}
+}
+
+//var map = L.map('map').setView([40.99404, -65.621], 6);
+var selectList = "<option></option>";
+var destinationList;
+var destinationChk = "<option></option>";
+var checkBoxStr = "";
+var menuData;
+var mmsiVoyageKeyPair = {}
+var jsonFileMap = {};
+var jsonFileMapWithDateTime = {};
+var maplayer = {};
+var maplayerWithDateTime = {};
+
+var map = L.map('map').setView([40.99404, -65.621], 6);
+
+L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpandmbXliNDBjZWd2M2x6bDk3c2ZtOTkifQ._QA7i5Mpkd_m30IGElHziw', {
+	maxZoom: 18,
+	attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+		'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+		'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+	id: 'mapbox.streets'
+}).addTo(map);
+
+
+function storeJsonFileToMemory() {
+	$.ajaxSetup({
+	    async: false
+	});
+	
+	$.getJSON("menu/Jan_menu.json",function(data){
+		//selectList = selectList + "<option>" + mmsi[i] + "</option>";
+		console.log(data)
+		menuData = data;
+	});
+	
+	/*$.getJSON("JsonData/destination.json",function(data){
+		//selectList = selectList + "<option>" + mmsi[i] + "</option>";
+		console.log(data)
+		destinationList = data;
+	});*/
+	console.log(destinationList)
+	for(var key in destinationList) {
+		destinationChk = destinationChk + "<option>" + key + "</option>";
+	}
+	 var stopCnt = 0;
+	for(var key in menuData) {
+		mmsiVoyageKeyPair[menuData[key]['MMSI']] = menuData[key]['Voyages']; 
+		if(menuData[key]['MMSI'] != 0) {
+		stopCnt++;
+		
+		selectList = selectList + "<option>" + menuData[key]['MMSI'] + "</option>";
+		if(stopCnt <= 500) {
+	
+			checkBoxStr = checkBoxStr +'<div style="color:white"><a data-toggle="collapse" data-parent="#accordion" href="#collapse_'+ menuData[key]['MMSI'] +'" style="color:white" onclick="changeLabel(this)">+ </a><span class="mmsiclass">'+menuData[key]['MMSI']+'</span></div>' +
+							'<span id="collapse_'+menuData[key]['MMSI']+'" class="panel-collapse collapse" style="color:white">';
+			//checkBoxStr = checkBoxStr + "<span style='color:white'>" + menuData[key]['MMSI']+"</span><br/>";
+			var voyages =  menuData[key]['Voyages']
+			for(var idx in voyages) {
+				var voyage = voyages[idx];
+				if(voyage != 'Jan_39' && voyage != 'Jan_11036') 
+				{
+				checkBoxStr = checkBoxStr + "&nbsp;&nbsp;&nbsp;<input type='checkbox' id='"+voyage+"' class='chk_class' onclick='removeLayer(this.id,"+menuData[key]['MMSI']+")' checked='true'>"+voyage+"</input> <br/>";
+				//checkBoxStr = checkBoxStr + "<input type='checkbox' id='"+voyage+"' class='chk_class' onclick='removeLayer(this.id,"+menuData[key]['MMSI']+")' checked='true'><span style='color:white'>"+voyage+"</span></input> <br/>";
+				
+				var path = 'JsonData/' + menuData[key]['MMSI'] + "/" + voyage + ".json";
+				$.getJSON(path,function(data) {
+					var temp = [];
+					for(var m in data['Geometry']) {
+						//console.log(temp['Geometry'][m])
+						temp.push([data['Geometry'][m][1],data['Geometry'][m][0]]);
+					}
+					data['Geometry'] = temp;
+					jsonFileMap[voyage] = data;
+					console.log(jsonFileMap[voyage])
+				}) }
+			}
+			checkBoxStr = checkBoxStr + '</span>';
+		}
+		/*if(stopCnt == 2) {
+			break;
+		}*/
+		}
+	}
+	
+	// Set the global configs back to asynchronous 
+	$.ajaxSetup({
+	    async: true
+	});
+}
+
+function addDropDownControl() {
+	var searchVoyage = L.control();
+	searchVoyage.onAdd = function(map){
+	   var div = L.DomUtil.create('div', 'searchVoyage');
+	  // div.setAttribute("style","height:200px");
+	   div.innerHTML =   "<select onchange='addNewVoyage(this)'>" + selectList + "</select><br/>";
+	 //  div.innerHTML =   "<select onchange='loadDestinationVoyage(this)'>" + destinationChk + "</select><br/>";
+	   return div;
+	};
+	searchVoyage.addTo(map);
+}
+function TwoDigits(val){
+    if (val < 10){
+         return "0" + val;
+    }
+    
+    return val;
+}
+var dateButton = true;
+function enableDateTimeFilter() {
+	console.log(this)
+	//document.getElementById('dateTimeCheckboxId').style.display = "none";
+	//if(document.getElementById('dateFilterchkid').checked) {
+	if(dateButton) {
+		document.getElementById('divTempId').style.display = "block";
+		dateButton = false;
+	}
+	else {
+		document.getElementById('divTempId').style.display = "none";
+		 //map.addLayer(polyline); 
+		 //maplayer[key] = polyline;
+		 for(var key in maplayerWithDateTime) {
+			 map.removeLayer(maplayerWithDateTime[key]);	 
+		 }
+		 maplayerWithDateTime = {};
+		 for(var key in maplayer) {
+			 if(document.getElementById(key).checked) {
+			 	map.addLayer(maplayer[key]);	 
+		 	}
+		 }
+		 dateButton = true;
+	}
+	
+}
+function addDateTimeControl() {
+	var searchVoyage = L.control({position: 'bottomright'});
+	searchVoyage.onAdd = function(map){
+	   var div = L.DomUtil.create('div', 'searchVoyage');
+	  // div.setAttribute("style","height:200px");
+	  div.setAttribute("id","dateTimeCheckboxId");
+	   //div.innerHTML =   "<input type='checkbox' id='dateFilterchkid' onclick='enableDateTimeFilter()' />&nbsp;<span style='color:white'>Date Time </span>";
+	   div.innerHTML = "<img src='images/time.jpeg' class='ok' id='dateFilterchkid' onclick='enableDateTimeFilter()' style='width:20px;height:20px'>"
+	   return div;
+	};
+	searchVoyage.addTo(map);
+}
+
+function addCheckboxControl() {
+	var searchVoyage = L.control();
+	searchVoyage.onAdd = function(map){
+		var div = L.DomUtil.create('div', 'searchVoyage');
+		   div.setAttribute("id","checkBoxDivId");
+		   div.innerHTML =    checkBoxStr 
+		   var h = document.getElementById("map").offsetHeight - document.getElementById("header").offsetHeight - 120;
+		   div.setAttribute("style","width:130px;overflow:auto;height:"+h+'px');
+		   return div;
+	};
+	searchVoyage.addTo(map);
+}
+function addRangeControl() {
+	var dateRangeFilter = L.control();
+	dateRangeFilter.onAdd = function(map) {
+		var div = L.DomUtil.create('div', 'searchVoyage2');
+		div.setAttribute("id", "divTempId");
+		div.setAttribute("style", "padding-right: 40px; top: 12px")
+		return div;
+	};
+	dateRangeFilter.addTo(map);
+}
+var polylineOptions = {
+        color: 'blue',
+        weight: 2,
+        opacity: 0.9
+      };
+function drawInitailVoyages() {
+	for(var key in jsonFileMap) {
+		
+	console.log(jsonFileMap[key])
+		drawVoyages(key, false);
+	}
+}
+function loadDestinationVoyage(obj)
+{
+	// Set the global configs back to asynchronous 
+	$.ajaxSetup({
+	    async: false
+	});
+	var voyages = destinationList[obj.value];
+	for(var voyage in voyages) {
+		var path = 'JsonData/' + voyages[voyage]['MMSI'] + "/Jan_" + voyages[voyage]['Voyage'] + ".json";
+		$.getJSON(path,function(data){
+			jsonFileMap[voyage] = data;
+			//console.log(jsonFileMap[voyage])
+		})
+	}
+	for(var key in voyages) {
+		drawVoyages(key, false);
+	}
+	// Set the global configs back to asynchronous 
+	$.ajaxSetup({
+	    async: true
+	});
+}
+var prevPoly = '';
+var prevStartMarker = '';
+var prevOldMarker = '';
+function drawVoyages(key, flag) {
+	//L.marker(jsonFileMap[key]['Geometry'][0]).addTo(map);
+    var polyline = new L.Polyline(jsonFileMap[key]['Geometry'],polylineOptions);
+    map.addLayer(polyline); 
+    maplayer[key] = polyline;
+    if(flag) {
+    	polyline.setStyle({color : 'red'})
+    	var timeout = setTimeout(function() {polyline.setStyle({color : 'blue'}); }, 500);
+    }
+    
+   // L.marker(jsonFileMap[key]['Geometry'][jsonFileMap[key]['Geometry'].length - 1]).addTo(map);
+    var d = jsonFileMap[key]['Geometry'];
+   
+    polyline.on("click", function(e) {console.log(key)
+    	if(prevPoly != '') {
+    		map.removeLayer(prevStartMarker);
+    		map.removeLayer(prevOldMarker); 
+    		//map.removeLayer(prevPoly);
+    		prevPoly.setStyle({color : 'blue'})
+    	}
+    	var startMarker = L.marker(polyline._latlngs[0]).addTo(map);
+    	console.log(jsonFileMap[key])
+    	startMarker.bindPopup(jsonFileMap[key]['MMSI']+" start " + jsonFileMap[key]['DateTime'][0] +" Est Start:"+jsonFileMap[key]['StartTime']+' Dest :'+jsonFileMap[key]['Destination']).openPopup();
+		//console.log(polyline)
+		console.log(polyline._latlngs[0].lat+', '+polyline._latlngs[0].lng)
+		console.log(polyline._latlngs[polyline._latlngs.length-1].lat+', '+polyline._latlngs[polyline._latlngs.length-1].lng)
+		var oldMarker = L.marker(polyline._latlngs[polyline._latlngs.length-1]).addTo(map);
+		oldMarker.bindPopup(jsonFileMap[key]['MMSI']+" end " + jsonFileMap[key]['DateTime'][jsonFileMap[key]['DateTime'].length - 1]+" Est End:"+jsonFileMap[key]['EndTime']+' Dest :'+jsonFileMap[key]['Destination']).openPopup();
+		//console.log(polyline)
+		
+		polyline.setStyle({color : 'red'})
+		this.bringToFront();
+		
+		prevPoly = polyline
+		prevStartMarker = startMarker
+		prevOldMarker = oldMarker
+    })
+   // var animatedMarker = L.animatedMarker(polyline.getLatLngs());
+
+    //map.addLayer(animatedMarker);
+    
+    //animatedMarker.start();
+}
+function removeLayer(id, mmsi)
+{
+	var voyageFit = {
+            maxZoom : 7
+        };
+	   if(document.getElementById(id).checked)
+	   {
+		   if(id in maplayer) {
+			   maplayer[id].setStyle({color : 'red'})
+		   		map.addLayer(maplayer[id]);
+				var geo = jsonFileMap[id]["Geometry"];
+				map.fitBounds(maplayer[id]);
+				var timeout = setTimeout(function() {console.log("Change Color");maplayer[id].setStyle({color : 'blue'}); }, 800);
+		   }
+		   else {
+			   $.ajaxSetup({
+				    async: false
+				});
+			   
+			   var path = 'JsonData/' + mmsi + "/" + id + ".json";
+				$.getJSON(path,function(data){
+					jsonFileMap[id] = data;
+					var geo = data["Geometry"];
+				})
+				drawVoyages(id, true);
+				map.fitBounds(maplayer[id]);
+				$.ajaxSetup({
+				    async: true
+				});
+		   }
+	   }
+	   else
+	   {
+		   	maplayer[id].setStyle({color : 'red'})
+		    var timeout = setTimeout(function() {console.log("remove");maplayer[id].setStyle({color : 'blue'}); map.removeLayer(maplayer[id]); }, 500);
+		   	var geo = jsonFileMap[id]["Geometry"];
+			//map.fitBounds([geo[0], geo[geo.length - 1]], voyageFit);
+			map.fitBounds(maplayer[id]);
+			//clearTimeout(timeout);
+		   	
+	   }	   
+}
+function addNewVoyage(obj) {
+	console.log(obj.value);
+	if(obj.value == '') {
+		return;
+	}
+	var checkedValues = $('.mmsiclass').map(function() {
+	    return this.innerHTML;
+	}).get();
+	var flag = false;
+	console.log(checkedValues)
+	for(i = 0 ; i < checkedValues.length ; i++) {
+		if(checkedValues[i] == obj.value) {
+			console.log("present")
+			return;
+		}
+	}
+	checkBoxStr = document.getElementById('checkBoxDivId').innerHTML;
+	//createLabel("label_"+obj.value, obj.value);
+	 checkBoxStr = checkBoxStr +'<div style="color:white"><a data-toggle="collapse" id="l_'+obj.value+'" data-parent="#accordion" href="#l_collapse_'+ obj.value +'" style="color:white" onclick="changeLabel(this)">-</a><span class="mmsiclass">'+obj.value+'</span></div>' +
+	'<span id="l_collapse_'+obj.value+'" class="panel-collapse collapse" style="color:white" >';
+	
+	var voyages =  mmsiVoyageKeyPair[obj.value];
+	for(var idx in voyages) {
+		var voyage = voyages[idx];
+	/*	var voyage = voyages[idx];
+		var element = document.createElement("input");
+	 	element.type = "checkbox";
+	 	element.value = voyage;
+	 	element.setAttribute("id", voyage);
+	 	element.setAttribute("class", "chk_class");
+	 	element.setAttribute("onclick", "removeLayer(this.id," + obj.value + ")");
+	 	//element.setAttribute("checked", "true");
+	 	document.getElementById('checkBoxDivId').appendChild(element);
+	 	
+		createLabel("Chk_label_"+voyage, voyage);*/
+		checkBoxStr = checkBoxStr + "&nbsp;&nbsp;&nbsp;<input type='checkbox' id='"+voyage+"' class='chk_class' onclick='removeLayer(this.id,"+obj.value+")'>"+voyage+"</input> <br/>";
+	}
+	
+	checkBoxStr = checkBoxStr + '</span>';
+	document.getElementById('checkBoxDivId').innerHTML = checkBoxStr;
+	
+	document.getElementById("l_"+obj.value).setAttribute("aria-expanded", true);
+	
+	document.getElementById("l_collapse_"+obj.value).setAttribute ('class','panel-collapse collapse in');
+	document.getElementById("l_collapse_"+obj.value).setAttribute("aria-expanded", true);
+	
+		
+	 
+	 var objDiv = document.getElementById("checkBoxDivId");
+	    console.log(objDiv.scrollHeight)
+	    console.log(objDiv.scrollHeight+25)
+	    objDiv.scrollTop = objDiv.scrollHeight;
+	    
+	 //document.getElementById('checkBoxDivId').appendChild(document.createTextNode(obj.value));
+	 //document.getElementById('checkBoxDivId').appendChild(document.createElement("br"));
+	 
+}
+function createLabel(id, voyage) {
+	var label = document.createElement("span");
+	label.setAttribute("id", id);
+	label.setAttribute("style", "color:white");
+	 document.getElementById('checkBoxDivId').appendChild(label);
+	 document.getElementById(id).innerHTML = voyage;
+	 document.getElementById('checkBoxDivId').appendChild(document.createElement("br"));
+}
+function dateWiseFilter(startDate, endDate) {
+	//if (event.which == 13 || event.keyCode == 13) {
+		  // startDate = startDate.valueOf();
+		  console.log(endDate)
+	       startDate = getDate(startDate).valueOf();
+		   endDate = getDate(endDate).valueOf();
+		   
+		  /*  var startDate ="";  
+		   var endDate = "";
+		   if(document.getElementById("startDate").value != '')
+		    startDate = new Date(document.getElementById("startDate").value)
+		   if(document.getElementById("endDate").value != '')
+		    endDate = new Date(document.getElementById("endDate").value) */
+		   
+		   var checkedValues = $('.chk_class:checked').map(function() {
+			    return this.id;
+			}).get();
+		   console.log(document.getElementById("Jan_1").checked)
+		   console.log(checkedValues)
+		   $.each(checkedValues,function(ii, key){
+			   console.log(key)
+			   if(document.getElementById(key).checked) {
+			   	 map.removeLayer(maplayer[key]);
+			   	 if(key in maplayerWithDateTime) {
+			   	 	map.removeLayer(maplayerWithDateTime[key]);
+			   	 }
+			   	 console.log(jsonFileMap[key]['DateTime'])
+			   	 var startIndex = binarySearchGreaterThanDate(startDate, jsonFileMap[key]['DateTime']);
+			   	 var endIndex = binarySearchLessThanDate(endDate, jsonFileMap[key]['DateTime'])
+			   	 console.log(key)
+			   	 console.log('startIndex : ' + startIndex + ' endIndex : '+endIndex)
+			     if(startIndex != -1 ) {
+			    	 //var geojsonLayer = convertJsonToGeoJson(ii, key, jsonFileMap[key]['Geometry'].slice(startIndex));
+			    	 //maplayer[key] = geojsonLayer;
+			    	 //jsonFileMapWithDateTime[key]=
+			    		 console.log(jsonFileMap[key]['Geometry'].slice(startIndex,endIndex).length)
+			    		 //console.log(jsonFileMap[key]['Geometry'].slice(startIndex).length)
+			    	 var polyline = new L.Polyline(jsonFileMap[key]['Geometry'].slice(startIndex,endIndex), polylineOptions);
+			    	    map.addLayer(polyline); 
+			    	    maplayerWithDateTime[key] = polyline;
+			     }
+			   }
+			});
+	//}
+}
+function getDate(startDate) {
+	  var month = startDate.getUTCMonth() + 1; //months from 1-12
+	  var day = startDate.getDate();
+	  var year = startDate.getUTCFullYear();
+	  //console.log(value.getFullYear()+'/'+(value.getMonth()+1)+'/'+value.getDate()+' '+value.getHours()+":"+value.getMinutes()+":"+value.getSeconds())
+	  newdate = year + "/" + month + "/" + day + " " +startDate.getHours()+":"+startDate.getMinutes()+":"+startDate.getSeconds() ;
+	  startDate = new Date(newdate);
+	  return startDate;
+}
+
+var drawnItems = new L.FeatureGroup();
+map.addLayer(drawnItems);
+
+var rectDrawer = new L.Draw.Rectangle(map);
+
+var selectRegion = L.control({position: 'topleft'});
+selectRegion.onAdd = function(map){
+		  var div = L.DomUtil.create('div', 'searchVoyage');
+		  div.setAttribute("id","regionSelectId");
+		//  div.innerHTML = "<input type='button' id='draw_poly' style='display:block' value='+'/><input type='button' id='delete_poly' style='display:none' value='-'/>";
+		  div.innerHTML = "<img src='images/arrow.png' class='ok' id='draw_poly' style='width:16px;height:16px'>";
+		// "<img src='arrow.png' id='delete_poly' style='display:none' class='ok' style='width:16px;height:16px'>";
+		// div.innerHTML = "<img src='time.jpeg' class='ok' id='dateFilterchkid' onclick='enableDateTimeFilter()' style='width:20px;height:20px'>"
+		// div.setAttribute("style","width:16px")
+		  return div;
+};
+
+selectRegion.addTo(map);
+
+$(document).ready(function(){
+	storeJsonFileToMemory();
+	addDropDownControl();
+	addCheckboxControl();
+	addRangeControl();
+	addDateTimeControl();
+	//addRadio() ;
+	//typeShip();
+	
+	drawInitailVoyages();
+	
+	var element = document.createElement("div");
+	element.setAttribute("id", "slider");
+	document.getElementById('divTempId').appendChild(element);
+	document.getElementById('slider').setAttribute("style","width:500px;height:5px");
+	$('#slider').dateRangeSlider({bounds:{min: new Date(2009, 0, 1,10,10,10), max: new Date(2009, 11, 31,8,8,8)},
+			//defaultValues: {min: new Date(2009, 0, 10, 10,10,10), max: new Date(2009, 4, 22,8,8,8)},
+			defaultValues: {min: new Date(2009, 0, 10, 10,10,10), max: new Date(2009, 3, 30,8,8,8)},
+		    formatter: function(value) {
+		        var hours = value.getHours(),
+		            minutes = value.getMinutes();
+		       // console.log("hh :" + value.getFullYear()+'/'+value.getMonth()+'/'+value.getDate()+' '+value.getHours()+":"+value.getMinutes()+":"+value.getSeconds())
+		       // console.log(value.getFullYear()+'/'+(value.getMonth()+1)+'/'+value.getDate()+' '+value.getHours()+":"+value.getMinutes()+":"+value.getSeconds())
+		        return value.getFullYear()+'-'+(value.getMonth()+1)+'-'+value.getDate()+' '+value.getHours()+":"+value.getMinutes()+":"+value.getSeconds();
+		    }
+	});
+	$("#slider").bind("valuesChanged", function(e, data) {
+		dateWiseFilter(data.values.min, data.values.max);
+		//console.log(data.values.min)
+	});
+
+	document.getElementById('divTempId').style.display = 'none';
+	
+	getShipTypePopup();
+})
+function getShipTypePopup() {
+	
+	$('[data-toggle="popover"]').popover({ html : true,content: function() {
+		
+		var type = [{'number' : 2, 'name' : 'Wing In Ground'},
+		            {'number' : 30, 'name' : 'Fishing'},
+		            {'number' : 31, 'name' : 'Tug'},
+		            {'number' : 32, 'name' : 'Tug(l>200m b>25m)'},
+		            {'number' : 33, 'name' : 'Dredger(UW)'},
+		            {'number' : 34, 'name' : 'Diving Ops'},
+		            {'number' : 35, 'name' : 'Military Ops'},
+		            {'number' : 36, 'name' : 'Sailing Vessel'},
+		            {'number' : 37, 'name' : 'Pleasure Craft'},
+		            {'number' : 4, 'name' : 'High-Speed Craft'},
+		            {'number' : 5, 'name' : 'Craft','subtype' : [{'number' : 50 ,'name' : 'Pilot vessel'},{'number' : 51 ,'name' : 'Search and Rescue'},{'number' : 52 ,'name' : 'Tug'},{'number' : 53 ,'name' : 'Port Tender'},{'number' : 54 ,'name' : 'Anti-Pollution'},{'number' : 55 ,'name' : 'Law Enforce'},{'number' : 56 ,'name' : 'Local Vessel-56'} ,{'number' : 57 ,'name' : 'Local Vessel-57'}, {'number' : 58 ,'name' : 'Medical Trans'},{'number' : 59 ,'name' : '	Special Craft'}]},
+		            {'number' : 6, 'name' : 'Passenger', 'subtype' : [{'number' : 61 ,'name' : 'Hazard A'},{'number' : 62,'name' : 'Hazard B'},{'number' : 63,'name' : 'Hazard C'},{'number' : 64,'name' : 'Hazard D'}]},
+		            {'number' : 7, 'name' : 'Cargo', 'subtype' : [{'number' : 71 ,'name' : 'Hazard A'},{'number' : 72,'name' : 'Hazard B'},{'number' : 73,'name' : 'Hazard C'},{'number' : 74,'name' : 'Hazard D'}]},
+		            {'number' : 8, 'name' : 'Tanker', 'subtype' : [{'number' : 81 ,'name' : 'Hazard A'},{'number' : 82,'name' : 'Hazard B'},{'number' : 83,'name' : 'Hazard C'},{'number' : 84,'name' : 'Hazard D'}] },
+		            {'number' : 9, 'name' : 'Other'}]
+		var shipType = '';
+		for(var index in type) {
+			
+		console.log(type[index]['name']);
+			shipType = shipType +'<div><input type="checkbox" onclick="getShips('+type[index]['number']+')"/>  &nbsp;<a data-toggle="collapse" data-parent="#accordion" href="#Ship_'+ type[index]['number'] +'" style="color:black">'+type[index]['name']+'</a></div>' +
+						'<span id="Ship_'+type[index]['number']+'" class="panel-collapse collapse">';
+			var subtype = type[index]['subtype']
+			for(var second in subtype) {
+				shipType = shipType + "&nbsp;&nbsp;&nbsp;<input type='checkbox'> <span style='font-size:12px'>"+subtype[second]['name']+"</span></input> <br/>";
+			}
+			shipType = shipType + '</span>';
+		}
+        return shipType;
+    }}); 
+}
+
+function getShips(shipType) {
+	
+	for(var key in maplayer) {
+ 		map.removeLayer(maplayer[key]);
+	}
+	console.log(jsonFileMap)
+	for(var key in jsonFileMap) {
+		if((shipType+"").length == 1) {
+			if((jsonFileMap[key]['Type']+"").startsWith(shipType+"")) {
+				//console.log(shipType+' : '+jsonFileMap[key])
+				map.addLayer(maplayer[key]);
+			}
+		}
+		else if(jsonFileMap[key]['Type'] == shipType){
+			//console.log(shipType+' : '+jsonFileMap[key]['Type'])
+		}
+	}
+}
+var selectFlag = true;
+$('#draw_poly').click(function() {
+ 	console.log("Clicked.....")
+ 	if(selectFlag) {
+ 		rectDrawer.enable();
+ 		for(var key in maplayer) {
+	 		map.removeLayer(maplayer[key]);
+ 		}
+ 		selectFlag = false;
+ 	}
+ 	else {
+ 		if(layerDelete != '') {
+ 		 	map.removeLayer(layerDelete);
+ 		 	layerDelete = ''
+ 		 }
+ 		selectFlag = true;
+ 	}
+ //	$('#draw_poly').hide()
+ //	$('#delete_poly').show()
+ 
+});
+
+map.on('draw:deleted', function(e) {
+    console.log("Delete")
+});
+
+/*$('#delete_poly').click(function() {
+	 //rectDrawer.disable();
+	 if(layerDelete != '') {
+	 	map.removeLayer(layerDelete);
+	 	layerDelete = ''
+	 }
+	 $('#draw_poly').show()
+	 $('#delete_poly').hide()	 
+});*/
+var layerDelete ='';
+map.on('draw:created', function (e) {
+	console.log('created....')
+	 var type = e.layerType;
+	 layerDelete = e.layer;
+
+	 e.layer.on('click', function() {
+		 e.layer.editing.enable();
+	 })
+	 
+	 e.layer.on('edit', function() {
+		 console.log('EDIT......')	 
+     })
+    drawnItems.addLayer(layerDelete);     
+    var bounds = e.layer.getBounds();
+	for(var key in maplayer) {
+		var flag =  false;
+		var temp = maplayer[key]._latlngs;
+		//console.log(temp)
+		for(var j in temp) {
+			if(bounds.contains(temp[j])) {
+				flag = true;				
+				break;
+			}
+		}
+		console.log(flag)
+		if(flag) {
+			document.getElementById(key).checked = true;
+			map.addLayer(maplayer[key]);
+		} 
+		else {
+			document.getElementById(key).checked = false;
+		}
+	}
+});
+	
+map.on('draw:edited', function (e) {
+	var type = e.layerType,layer = e.layer;
+	console.log("Edit........")
+
+});
+function changeLabel(obj) {
+	console.log(obj.innerHTML)
+	if(obj.innerHTML == '+ ') {
+		obj.innerHTML = '- ';
+	}
+	else {
+		obj.innerHTML = '+ ';
+	}
+}
+function addRadio() {
+	var searchVoyage = L.control({position: 'bottomleft'});
+	searchVoyage.onAdd = function(map){
+		var div = L.DomUtil.create('div', 'searchVoyage');
+		   div.setAttribute("style","border-radius : 5px");
+		   div.innerHTML =   '<input type="radio" name="tileName" checked="checked" id="manualId" onclick="changeMap(this.id)"/> <span style="color:white">Manual</span>'+
+			   '&nbsp;<input type="radio" name="tileName" id="vectorId" onclick="changeMap(this.id)"/> <span style="color:white">Vector</span>';
+			   
+			   
+		  //div.setAttribute("overflow","auto");
+		   
+		   return div;
+	};
+	searchVoyage.addTo(map);
+}
+function typeShip() {
+	var searchVoyage = L.control({position: 'topleft'});
+	searchVoyage.onAdd = function(map) {
+		var div = L.DomUtil.create('div', 'searchVoyage');
+		
+		
+		   div.innerHTML =   "<img src='images/ship.png' title='Ship Type' data-toggle='popover' data-content='' class='ok' style='width:18px;height:20px'>";
+			   
+			   
+		  div.setAttribute("style","border-radius:5px");
+		   
+		   return div;
+	};
+	searchVoyage.addTo(map);
+}
+function wildCharactersearch() {
+	console.log(document.getElementById("wildCharId").value)
+	for(var key in menuData) {
+		console.log((menuData[key]['MMSI']+"").indexOf(document.getElementById("wildCharId").value))
+	}
+}
+function voyagePopup() {
+	var searchVoyage = L.control({position: 'bottomleft'});
+	searchVoyage.onAdd = function(map) {
+		var div = L.DomUtil.create('div', 'searchVoyage1');
+		
+		
+		   //div.innerHTML =   "<div id='header'>sssssss</div><div style='height:100px;border-color:blue;border-width:1;background-color:white'>kkkkkkkkk</div>";
+			div.innerHTML = '<div class="popover fade right in" role="tooltip" id="voyagePopupId" style="top: 400px;display: block;width:300px">'+
+			 '<h3 class="popover-title"><label onclick="closeVoyagePopup()" style="cursor: pointer;">×</label> Voyage Details</h3><div class="popover-content"><div>'+
+			 '<div style="width: 120px; float: left;">MMSI : 34554564<br/>dfsd : ef</div><div style="margin-left: 120px">IMO : 33531890<br/>dsf : dfd</div>'  
+			   
+		  div.setAttribute("style","border-radius:5px");
+		   
+		   return div;
+	};
+	searchVoyage.addTo(map);
+}
+//voyagePopup()
+function closeVoyagePopup() {
+	document.getElementById('voyagePopupId').style.display = 'none';
+}
+</script>
+
+</body>
+</html>

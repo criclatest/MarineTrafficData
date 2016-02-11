@@ -1,0 +1,1588 @@
+<html>
+<head>
+    <title>Marine Traffic Data</title>
+    <meta charset="utf-8">
+    <style>#map { width: 800px; height: 600px; }</style>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+    
+    <!-- print -->
+	<link rel="stylesheet" type="text/css" media="print" href="css/print.css" />
+    <!-- Mapbox GL -->
+	<link href="https://api.tiles.mapbox.com/mapbox-gl-js/v0.11.2/mapbox-gl.css" rel='stylesheet' />
+	<script src="https://api.tiles.mapbox.com/mapbox-gl-js/v0.11.2/mapbox-gl.js"></script>
+    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+   <!-- <link href='css/mapbox-gl-draw.css' rel='stylesheet' />
+    <script src='script/mapbox-gl-draw.js'></script> -->
+    
+     <!-- Slider -->
+    <script src="script/d3.min.js"></script>
+	<script src="script/chroniton-only.js"></script>
+	<link href='css/chroniton-example.css' rel='stylesheet' type='text/css' />
+	
+	<!-- For expandable checkbox & popover-->
+ 	<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+ 
+  	<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+   
+   <!-- Time series -->
+   <script src="https://code.highcharts.com/highcharts.js"></script>
+	<script src="https://code.highcharts.com/modules/exporting.js"></script>
+   
+   <!-- Bootstrap Verticle Tab -->
+    <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css">
+  	<link rel="stylesheet" href="css/bootstrap.vertical-tabs.css">
+  
+  <!-- Select Region -->
+  	<script src="http://leaflet.github.io/Leaflet.draw/leaflet.draw.js"></script>
+	<script src="script/Edit.SimpleShape.js"></script>
+	<script src="script/Edit.Rectangle.js"></script>
+<style>
+body { margin:0; padding:0; }
+/* #map { position:absolute; top:0; bottom:0; width:100%; }*/
+html, body, #map {
+	height: 98%;
+	width: 100%;
+}
+#header {
+    background-color:#065785;
+	color:white;
+	padding:1px;
+}
+		
+.theme-example .x.axis .domain {
+    stroke:lightblue;
+}
+
+.theme-example text {
+    font-family:serif;
+}
+
+.area {
+    fill:steelblue;
+}
+
+circle.marker {
+    fill:darkblue;
+}
+
+.theme-example path.handle {
+    fill:steelblue;
+    stroke:none;
+}
+
+.theme-example .x.axis .halo,
+.theme-example .x.axis .tick line {
+    display:none;
+}
+.searchVoyage {
+    padding: 6px 8px;
+    font: 14px/16px Arial, Helvetica, sans-serif;
+    background: #065785;
+    
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    border-radius: 5px;
+}
+.selectRegionDisplay {
+	padding: 6px 8px;
+    font: 14px/16px Arial, Helvetica, sans-serif;
+    background: white;
+    
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    border-radius: 5px;
+    border-color: #065785;
+}
+.searchVoyage h4 {
+    margin: 0 0 5px;
+    color: #777;
+}	
+.timeSliderCss {
+    padding: 6px 8px;
+    font: 14px/16px Arial, Helvetica, sans-serif;
+    background: white;
+    
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    border-radius: 5px;
+}
+/* Popover */
+/*  .popover {
+      width:200px;
+      height: 350px;
+      overflow:auto;
+      position:fixed;
+  }*/
+  .popover-title {
+    background-color: #065785; 
+    color: #FFFFFF; 
+}
+
+.ok {
+
+    background: rgba(255,255,255, 1);
+    border-radius: 4px;
+    cursor: pointer;
+    height: 22px;
+    width: 22px;
+   
+    position: relative;
+    z-index: 1;
+}
+</style>
+</head>
+
+<body>
+<div id="header">
+<label style="font-size: 30px">
+&nbsp;&nbsp;Marine Traffic Interactive Interface 
+</label>
+ <div class="btn-group btn-group-xs" style="padding-left: 630px">
+
+    <img src="images/sea.gif" data-toggle='popoverSearch' data-content='' data-placement="bottom" class="btn btn-primary" style="color:black;background-color:white;width:32px;height:24px"></img>
+   <!--  <img src="setting.png"  class="btn btn-primary" style="color:black;background-color:white;width:32px;height:24px"></img>-->
+    <img src="images/print.png"  class="btn btn-primary" onclick="window.print()" style="color:black;background-color:white;width:32px;height:24px"></img> 
+  <!-- <img src="share.png"  class="btn btn-primary" style="color:black;background-color:white;width:32px;height:24px" onclick="loadAllVoyages()"></img> -->
+  <img src="images/share.png" data-toggle='popoverMonth' data-content='' data-placement="bottom" class="btn btn-primary" style="color:black;background-color:white;width:32px;height:24px"></img>
+  </div>
+</div>
+<div id="map"></div>
+
+<script src="script/leaflet-mapbox-gl.js"></script>
+<script>
+var token = 'pk.eyJ1IjoibmlsZXNoYmhhZGFuZTEyMyIsImEiOiJjaWhxbDBjYzYwNGtjdjFseG55ems2dDh4In0.pR16zrG-YJlP1rtZpPiIUw';
+
+var map = L.map('map').setView([41, -70.50], 8);
+
+var selectList = "<option></option>";
+var checkBoxStr = "";
+var menuData;
+
+var gl = L.mapboxGL({
+	container: 'map',
+    accessToken: token,
+   	style: 'mapbox://styles/nileshbhadane123/cikhiucfq001496kq08sotl3l'
+}).addTo(map);
+
+var tempMap = gl._glMap;
+
+map.on('mousemove', function (e) {
+	gl._glMap.featuresAt(e.containerPoint, {layer: layerArray, radius: 5}, function (err, features) {
+		gl._glMap.getCanvas().style.cursor = (!err && features.length) ? 'pointer' : '';
+	})
+	
+})
+var layerArray = ['jan-voyages','feb-voyages','march-voyages','apr-voyages','may-voyages','jun-voyages','jul-voyages','aug-voyages','sep-voyages','oct-voyages','nov-voyages','dec-voyages'];
+var layerFlagSource = {'jan-voyages' : false,'feb-voyages' : false,'march-voyages' : false,'apr-voyages' : false,'may-voyages' : false,'jun-voyages' : false,'jul-voyages' : false,'aug-voyages' : false,'sep-voyages' : false,'oct-voyages' : false,'nov-voyages' : false,'dec-voyages' : false};
+var allMonths = ['jan','feb','march','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+var universalLayerArray = layerArray;
+var mapMonthLayer = {'jan' : 'jan-voyages', 'feb' : 'feb-voyages','mar' : 'march-voyages','apr' : 'apr-voyages','may' : 'may-voyages','jun' : 'jun-voyages','jul' : 'jul-voyages','aug' : 'aug-voyages','sep' : 'sep-voyages','oct' : 'oct-voyages','nov' : 'nov-voyages','dec' : 'dec-voyages'}
+var monthMenu = ['Jan_menu.json','Feb_menu.json','March_menu.json','Apr_menu.json','May_menu.json','Jun_menu.json','Jul_menu.json','Aug_menu.json','Sep_menu.json','Oct_menu.json','Nov_menu.json','Dec_menu.json'];
+var mapboxKey = {'jan-voyages' : {'source-layer' : 'jan_voyages' , 'map-id' : 'nileshbhadane123.1fabed35'},
+				 'feb-voyages' : {'source-layer' : 'feb_voyages' , 'map-id' : 'nileshbhadane123.bf4e4a14'},
+				 'march-voyages' : {'source-layer' : 'march_voyages', 'map-id' : 'nileshbhadane123.3070def5'},
+				 'apr-voyages' : {'source-layer' : 'apr_voyages' , 'map-id' : 'nileshbhadane123.6e0ae41c'},
+				 'may-voyages' : {'source-layer' : 'may_voyages' , 'map-id' : 'nileshbhadane123.454f1fde'},
+				 'jun-voyages' : {'source-layer' : 'jun_voyages' , 'map-id' : 'nileshbhadane123.b3359905'},
+				 'jul-voyages' : {'source-layer' : 'jul_voyages' , 'map-id' : 'nileshbhadane123.eb925d40'},
+				 'aug-voyages' : {'source-layer' : 'aug_voyages' , 'map-id' : 'nileshbhadane123.471a88d4'},
+				 'sep-voyages' : {'source-layer' : 'sep_voyages' , 'map-id' : 'nileshbhadane123.e8f8dd1b'},
+				 'oct-voyages' : {'source-layer' : 'oct_voyages' , 'map-id' : 'nileshbhadane123.d68a6703'},
+				 'nov-voyages' : {'source-layer' : 'nov_voyages' , 'map-id' : 'nileshbhadane123.76477e9a'},
+				 'dec-voyages' : {'source-layer' : 'dec_voyages' , 'map-id' : 'nileshbhadane123.a2b14905'}}
+map.on('click', function (e) {
+	//console.log(e)
+	if(polyline != '') {
+		map.removeLayer(polyline);
+		polyline = '';
+	}
+	if(marker != "") {
+		map.removeLayer(marker);
+		marker = "";
+	}
+	gl._glMap.featuresAt(e.containerPoint, {layer: layerArray, radius: 5}, function (err, features) {
+		if(!err && features.length) {
+			console.log(features)
+			console.log(features[0].layer.id)
+			clickVoyage(features[0].properties.voyage, features[0].layer.id);
+		}
+	})
+	
+})
+
+var polyline = "";
+var dateLatLng = {}
+var domainStartDate = "";
+var domainEndDate = "";
+var momentPlaces;
+function drawVoyage(id,mmsi) {
+	// Set the global configs back to asynchronous 
+	$.ajaxSetup({
+	    async: false
+	});
+	var polylineOptions = {
+	        color: 'red',
+	        weight: 1,
+	        opacity: 1
+	};
+	var path = "JsonData/"+mmsi+"/"+id+".json";
+	console.log(path)
+	var voayge = id;
+	var jsonFileMap = {}
+	$.getJSON(path,function(data) {
+		jsonFileMap[id] = data;
+		//console.log(jsonFileMap[id])
+	})
+	var tempGeometry = jsonFileMap[voayge]['Geometry'];
+	var datetime = jsonFileMap[voayge]['DateTime'];
+	var d;
+	var sec,min
+	var geometry = []
+	for(var i in datetime) {
+		geometry.push([tempGeometry[i][1],tempGeometry[i][0]])
+	}
+	
+	var geojson = {type: "FeatureCollection", features: [{"type": "Feature","geometry" : { "type": "LineString","coordinates": geometry},
+																												"properties": {"DateTime" : datetime}
+	}]}
+	domainStartDate = datetime[0];
+	domainEndDate = datetime[datetime.length - 1];
+	polyline = new L.Polyline(geometry,polylineOptions);
+    L.geoJson(geojson, {style: {
+        "color": "red",
+        "weight": 2,
+        "opacity": 1
+    }}).addTo(map);
+    
+     momentPlaces = geojson.features[0].properties.DateTime.map(function(d, i) {
+    	 return [new Date(d), geojson.features[0].geometry.coordinates[i]];
+    });
+    console.log(momentPlaces)
+ 	// Set the global configs back to asynchronous 
+	$.ajaxSetup({
+	    async: true
+	});
+}
+function addDateTimeControl() {
+	var searchVoyage = L.control({position: 'bottomright'});
+	searchVoyage.onAdd = function(map){
+	   var div = L.DomUtil.create('div', 'searchVoyage');
+	   div.setAttribute("style","display:none");
+	  div.setAttribute("id","dateTimeCheckboxId");
+	   //div.innerHTML =   "<input type='checkbox' id='dateFilterchkid' onclick='enableDateTimeFilter()' />&nbsp;<span style='color:white'>Date Time </span>";
+	   div.innerHTML = "<img src='images/time.jpeg' class='ok' id='dateFilterchkid' onclick='enableDateTimeFilter()' style='width:20px;height:20px;'>"
+	L.DomEvent.disableClickPropagation(div);
+	   return div;
+	};
+	searchVoyage.addTo(map);
+}
+function timeSlider() {
+	var searchVoyage = L.control({position: 'bottomleft'});
+	console.log(searchVoyage)
+	searchVoyage.onAdd = function(map){
+	   var div = L.DomUtil.create('div', 'timeSliderCss');
+	   //var fromBottomPos = document.getElementById("map").offsetHeight - 260;
+	 // div.setAttribute("style","top:"+fromBottomPos+"px;");
+	  div.setAttribute("id","timeSliderId");
+	  div.setAttribute("style","display:none");
+	  div.innerHTML =   "<div id='nich'></div>"
+	  L.DomEvent.disableClickPropagation(div);
+	   //div.innerHTML =   "<input type='checkbox' id='dateFilterchkid' onclick='enableDateTimeFilter()' />&nbsp;<span style='color:white'>Date Time </span>";
+	   return div;
+	};
+	console.log(searchVoyage)
+	searchVoyage.addTo(map);
+}
+
+function disableMap() {
+	/*gl._Map.dragging.disable();
+	gl._Map.touchZoom.disable();
+	gl._Map.doubleClickZoom.disable();
+	gl._Map.scrollWheelZoom.disable();
+	gl._Map.boxZoom.disable();
+	gl._Map.keyboard.disable();
+    if (map.tap) gl._Map.tap.disable();*/
+}
+function enableMap() {
+	/*gl._Map.dragging.enable();
+    gl._Map.touchZoom.enable();
+    gl._Map.doubleClickZoom.enable();
+    gl._Map.scrollWheelZoom.enable();
+    gl._Map.boxZoom.enable();
+    gl._Map.keyboard.enable();
+    if (gl._Map.tap) gl._Map.tap.enable();*/
+}
+var marker = "";
+function enableDateTimeFilter() {
+	
+	
+drawVoyage(selectedVoyageId,selectedMmsi);
+document.getElementById('timeSliderId').style.display = 'block';
+
+if(marker != "") {
+	map.removeLayer(marker);
+	marker = ""
+}
+marker = L.marker([51.5, -0.09]).addTo(map);
+console.log(marker)
+//1 hour = 500 width and 10 ticks
+console.log(domainEndDate+ " : " + domainStartDate)
+var diff = new Date(domainEndDate).valueOf() - new Date(domainStartDate).valueOf();
+var diffInHours = diff/1000/60/60;
+console.log(diffInHours)
+var m = 1;
+var c = chroniton()
+	.width(500 * diffInHours)
+	.tapAxis(function(axis) { axis.ticks(10 * diffInHours); })
+	.domain([new Date(domainStartDate), new Date(domainEndDate)])
+	.labelFormat(d3.time.format('%b %e'))
+	
+ marker.on('mouseover', function (e) {
+     this.openPopup();
+     c.pause(); 
+ });
+ marker.on('mouseout', function (e) {
+     this.closePopup();
+     c.play();
+ });
+var bisectPlace = d3.bisector(function(d) { return d[0]; }).left;
+c.on('change.place', function(d) {
+	
+	marker.bindPopup("Time : " + d );
+  	var datum = momentPlaces[bisectPlace(momentPlaces, d)];
+  	console.log(datum);
+	marker.setLatLng(L.latLng(datum[1][0], datum[1][1]));
+	//document.getElementById('nich').scrollLeft = m;
+	//m = m + 1.6;
+});
+document.getElementById("nich").remove();
+
+var width = document.getElementById("map").offsetWidth - 80;
+
+d3.select("#timeSliderId")
+  .append('div')
+  .attr("id",'nich')
+  .attr("style","width:"+width+"px;overflow:auto;")
+  .call(c)
+
+  d3.select("#nich")
+      .append('button').text('play').on('click', function() { c.play(); });
+
+  d3.select("#nich")
+      .append('button').text('pause').on('click', function() { c.pause(); });
+
+  d3.select("#nich")
+      .append('button').text('stop').on('click', function() { c.stop(); });
+}
+
+
+function typeShip() {
+	var searchVoyage = L.control({position: 'topleft'});
+	searchVoyage.onAdd = function(map) {
+		var div = L.DomUtil.create('div', 'searchVoyage');
+		
+		   div.innerHTML =   "<img src='images/ship.png' title='Ship Type' data-toggle='popover' data-content='' class='ok' style='width:18px;height:20px'>";
+			   
+		  div.setAttribute("style","border-radius:5px");
+		  div.setAttribute("style","top:8px;");
+		  div.setAttribute("id","shipTypeId");
+		   
+		 return div;
+	};
+	searchVoyage.addTo(map);
+}
+
+function getShipTypePopup() {
+	
+	$('[data-toggle=popover]').on('shown.bs.popover', function () {
+		  $('.popover').css('top',parseInt($('.popover').css('top')) + 60 + 'px')
+		  .css('width',parseInt($('.popover').css('width')) + 200 + 'px')
+		 // .css('height',parseInt($('.popover').css('height')) + 200 + 'px')
+		  .css('overflow','auto')
+		})
+		console.log("popup over2222..............");
+		var type = [{'number' : 2, 'name' : 'Wing In Ground'},
+		            {'number' : 30, 'name' : 'Fishing'},
+		            {'number' : 31, 'name' : 'Tug'},
+		            {'number' : 32, 'name' : 'Tug(l>200m b>25m)'},
+		            {'number' : 33, 'name' : 'Dredger(UW)'},
+		            {'number' : 34, 'name' : 'Diving Ops'},
+		            {'number' : 35, 'name' : 'Military Ops'},
+		            {'number' : 36, 'name' : 'Sailing Vessel'},
+		            {'number' : 37, 'name' : 'Pleasure Craft'},
+		            {'number' : 4, 'name' : 'High-Speed Craft'},
+		            {'number' : 5, 'name' : 'Craft','subtype' : [{'number' : 50 ,'name' : 'Pilot vessel'},{'number' : 51 ,'name' : 'Search and Rescue'},{'number' : 52 ,'name' : 'Tug'},{'number' : 53 ,'name' : 'Port Tender'},{'number' : 54 ,'name' : 'Anti-Pollution'},{'number' : 55 ,'name' : 'Law Enforce'},{'number' : 56 ,'name' : 'Local Vessel-56'} ,{'number' : 57 ,'name' : 'Local Vessel-57'}, {'number' : 58 ,'name' : 'Medical Trans'},{'number' : 59 ,'name' : '	Special Craft'}]},
+		            {'number' : 6, 'name' : 'Passenger', 'subtype' : [{'number' : 61 ,'name' : 'Hazard A'},{'number' : 62,'name' : 'Hazard B'},{'number' : 63,'name' : 'Hazard C'},{'number' : 64,'name' : 'Hazard D'}]},
+		            {'number' : 7, 'name' : 'Cargo', 'subtype' : [{'number' : 71 ,'name' : 'Hazard A'},{'number' : 72,'name' : 'Hazard B'},{'number' : 73,'name' : 'Hazard C'},{'number' : 74,'name' : 'Hazard D'}]},
+		            {'number' : 8, 'name' : 'Tanker', 'subtype' : [{'number' : 81 ,'name' : 'Hazard A'},{'number' : 82,'name' : 'Hazard B'},{'number' : 83,'name' : 'Hazard C'},{'number' : 84,'name' : 'Hazard D'}] },
+		            //{'number' : 9, 'name' : 'Other'}]
+		            {'number' : 0, 'name' : 'Other'}]
+		
+		
+	$('[data-toggle="popover"]').popover({ html : true,content: function() {
+		removeRedLine();
+		closePopupOver('popover');
+		var shipType = '';
+		for(var index in type) {
+			
+			console.log("kk : "+type[index]['name']);
+			var clickedCheck = "";
+			if(shipChk.indexOf(type[index]['number']) != -1) {
+				getShips(type[index]['number'], true);
+				clickedCheck = ' checked="true" '
+			}
+				shipType = shipType +'<div><input type="checkbox" '+clickedCheck+' class="ship_chk_class" id="chk_ship_'+type[index]['number']+'" onclick="getShips('+type[index]['number']+', false)"/>  &nbsp;<a data-toggle="collapse" data-parent="#accordion" href="#Ship_'+ type[index]['number'] +'" style="color:black">'+type[index]['name']+'</a></div>' +
+							'<span id="Ship_'+type[index]['number']+'" class="panel-collapse collapse">';
+				var subtype = type[index]['subtype']
+				for(var second in subtype) {
+					var subChecked = "";
+					if(shipChk.indexOf(subtype[second]['number']) != -1) {
+						getShips(subtype[second]['number'], true);//If user already checked 
+						subChecked = " checked='true' "
+					}
+					shipType = shipType + "&nbsp;&nbsp;&nbsp;<input type='checkbox'"+subChecked+" id='chk_ship_"+subtype[second]['number']+"' onclick='getShips("+subtype[second]['number']+", false)'> <span style='font-size:12px'>"+subtype[second]['name']+"</span></input> <br/>";
+				}
+				shipType = shipType + '</span>';
+			}
+			
+        return shipType;
+    }});
+
+
+}
+
+var selectedShipType = "0";
+//var shipFilter = ['in', 'Type'];
+var shipChk = [];
+function getShips(shipType, flag) {
+	//gl._glMap = tempMap;
+	///console.log(shipFilter)
+	/**To get checked checkboxes again wwhen closing tooltip or popup*/
+	var dynamicShipFilter = ['in', 'Type'];
+	if(!flag) {
+		if(document.getElementById("chk_ship_"+shipType).checked)
+		{
+			shipChk.push(shipType);
+			console.log(" length : " +(shipType+"").length)
+		} else {	
+			var i = shipChk.indexOf(shipType);
+			if(i!=-1) {
+				shipChk.splice(i, 1);
+			}
+		}
+	}
+	//shipChk.push(shipType)
+	console.log(shipChk)
+	
+	for(var k in shipChk) {
+		
+	console.log("shipChk : " + shipChk[k] + " : " + (shipChk[k]+"").length)
+			if((shipChk[k]+"").length != 2) {
+				for(var i = 0 ; i < 9 ; i++) {
+					dynamicShipFilter.push(shipChk[k] * 10 + i);
+				}
+			} else {
+				dynamicShipFilter.push(shipChk[k]);
+			}
+	console.log(dynamicShipFilter)
+	}
+	console.log(dynamicShipFilter)
+	if(dynamicShipFilter.length > 0 && shipChk.indexOf(0) != -1) {
+
+		for(var key in universalLayerArray) {
+			
+			//if(key != 1 && key != 3) 
+			{
+				
+				console.log(universalLayerArray[key])
+				gl._glMap.setFilter(universalLayerArray[key], ['>=', 'Type', 0])
+			}
+		}
+	}
+	else {
+		console.log(universalLayerArray)
+		for(var key in universalLayerArray) {
+			
+			//if(key == 1) 
+			{
+				
+				//console.log(universalLayerArray[key])
+				gl._glMap.setFilter(universalLayerArray[key], dynamicShipFilter);
+			}
+		}
+	}
+}
+
+$(document).ready(function() {
+	storeJsonFileToMemory();
+	//selectRegion();
+	typeShip();
+	getShipTypePopup();
+	addDropDownControl();
+	addCheckboxControl();
+	timeSlider()
+	addDateTimeControl()
+});
+
+function storeJsonFileToMemory() {
+	$.ajaxSetup({
+	    async: false
+	});
+	$.getJSON("menu/all_menu.json",function(data) {
+		
+	  menuData = data.sort(function(a, b) {
+		    return a.MMSI - b.MMSI;
+		});
+	});
+	
+	for(var key in menuData) {//if( menuData[key]['MMSI'] == 367009530) 
+	{
+		//selectList = selectList + "<option>" + menuData[key]['MMSI'] + "</option>";
+		checkBoxStr = checkBoxStr +'<div style="color:white"><a data-toggle="collapse" data-parent="#accordion" href="#collapse_'+ menuData[key]['MMSI'] +'" style="color:white" onclick="changeLabel(this)">+ </a><span class="mmsiclass">'+menuData[key]['MMSI']+'</span></div>' +
+		'<span id="collapse_'+menuData[key]['MMSI']+'" class="panel-collapse collapse" style="color:white">';
+		var voyages =  menuData[key]['Voyages']
+		for(var idx in voyages) {
+			var voyage = voyages[idx];
+			var cont = "";
+			for(var v in voyage) {
+				cont = cont + voyage[v] + "-"
+			}
+			cont = cont.substring(0,cont.length - 1);
+			for(var v in voyage) {
+				if(v == 0) {			
+					checkBoxStr = checkBoxStr + "&nbsp;&nbsp;&nbsp;<input type='checkbox' id='"+cont+"' class='chk_class' onclick='removeLayerContinuous(this.id,"+menuData[key]['MMSI']+")'>"+voyage[v]+"</input> <br/>";
+				}
+				else {
+					checkBoxStr = checkBoxStr + "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"+voyage[v]+"<br/>";
+				}
+				selectList = selectList + "<option>" + voyage[v]+ "</option>";
+			}
+		}
+		checkBoxStr = checkBoxStr + '</span>';}
+	}
+	
+	$.ajaxSetup({
+	    async: true
+	});
+}
+var totalCheckCheckboxes = [];
+function removeLayerContinuous(id, mmsi) {
+	if(document.getElementById(id).checked) {
+		totalCheckCheckboxes.push(id);
+	} else {
+		var i = totalCheckCheckboxes.indexOf(id);
+		console.log("i : " + i)
+		if(i != -1) {
+			totalCheckCheckboxes.splice(i, 1);
+		}
+	}
+	console.log(id);
+	console.log(totalCheckCheckboxes)
+	var voy = ["in", "voyage"]
+	var keySet = {};
+	for(var v in totalCheckCheckboxes) {
+		var temp = totalCheckCheckboxes[v].split("-");
+		
+		
+		for(var k in temp) {
+			var index = allMonths.indexOf(temp[k].substring(0,3).toLowerCase())
+			if(index in keySet) {
+				keySet[index].push(temp[k])
+			}
+			else {
+				keySet[index] = ["in", "voyage", temp[k]]
+			}
+		}
+	}
+	console.log(keySet);
+	setStyleForVoyageForContinuous(keySet);
+}
+function addCheckboxControl() {
+	var searchVoyage = L.control();
+	searchVoyage.onAdd = function(map){
+		var div = L.DomUtil.create('div', 'searchVoyage');
+		   div.setAttribute("id","checkBoxDivId");
+		   div.innerHTML = checkBoxStr; 
+		   var h = document.getElementById("map").offsetHeight - document.getElementById("header").offsetHeight - 120;
+		   div.setAttribute("style","width:150px;overflow:auto;height:"+h+'px');
+		   L.DomEvent.disableClickPropagation(div);
+		   return div;
+	};
+//	L.DomEvent.disableClickPropagation(searchVoyage)
+	searchVoyage.addTo(map);
+	
+}
+function addDropDownControl() {
+	var searchVoyage = L.control();
+	searchVoyage.onAdd = function(map){
+	   var div = L.DomUtil.create('div', 'searchVoyage');
+	  // div.setAttribute("style","height:200px");
+	   div.setAttribute("id","chkMMSIId");
+	   div.innerHTML =   "<select onchange='addNewVoyage(this)'>" + selectList + "</select><br/>";
+	   L.DomEvent.disableClickPropagation(div);
+	 //  div.innerHTML =   "<select onchange='loadDestinationVoyage(this)'>" + destinationChk + "</select><br/>";
+	   return div;
+	};
+	searchVoyage.addTo(map);
+}
+var checkChekboxes = ['in', 'voyage'];
+function removeLayer(id, mmsi) {
+	if(document.getElementById(id).checked) {
+		checkChekboxes.push(id);
+	} else {
+		var i = checkChekboxes.indexOf(id);
+		console.log("i : " + i)
+		if(i != -1) {
+			checkChekboxes.splice(i, 1);
+		}
+	}
+	console.log(id.substring(0,3));
+	console.log(mapMonthLayer[id.substring(0,3).toLowerCase()])
+	setStyleForVoyageForContinuous(checkChekboxes, 'red', mapMonthLayer[id.substring(0,3).toLowerCase()]);
+}
+function setStyleForVoyageForContinuous(voyages) {
+	console.log('setStyleForVoyageForContinuous')
+	
+	for(var m in layerArray) {
+		if(layerFlagSource[layerArray[m]]) {
+			gl._glMap.removeSource(layerArray[m] + "1");
+			gl._glMap.removeLayer(layerArray[m] + "1");
+			layerFlagSource[layerArray[m]] = false;
+		}
+	}
+	
+	//setStyleForVoyageForContinuous(['in', 'voyage', v], 'red', mapMonthLayer[voy[v].substring(0,3).toLowerCase()]);
+	var color = ['red','green','orange','maroon','yellow','black','purple','yellow','pink']
+	
+	for(var v in voyages) {
+		//console.log("Vmm : " + v + " Voyage : " + voyages[v])
+		//console.log("color : " + color[v][2] + " Voyage : " + (voyages[v][2]+"").substring(0,3))
+	var layerName = mapMonthLayer[(voyages[v][2]+"").substring(0,3).toLowerCase()]
+	console.log("layerName : " + layerName + " : ");
+	var newLayerName = layerName + "1";
+	
+	layerFlagSource[layerName] = true;
+	gl._glMap.addSource(newLayerName, {
+        type: 'vector',
+        url: 'mapbox://' + mapboxKey[layerName]['map-id']
+    });
+	gl._glMap.addLayer({
+        "id": newLayerName,
+        "type": "line",
+        "source": newLayerName,
+        "source-layer": mapboxKey[layerName]['source-layer'],
+        "layout": {
+            "line-join": "round",
+            "line-cap": "round"
+        },
+        "filter": voyages[v],
+        "paint": {
+            "line-color": color[v],
+            "line-width": 2
+        }
+    });
+	}
+}
+function clickVoyage(id, layerName) {
+	
+	console.log(layerName);
+	gl._glMap.setPaintProperty(layerName, 'line-color', 'blue');
+	gl._glMap.setPaintProperty(layerName, 'line-opacity', 1);
+	setStyleForVoyage(['in', 'voyage', id], 'red', layerName);
+	getVoyageVesselPopupDetails(id)
+}
+//var flagSource = false;
+function setStyleForVoyage(filterValues, color, layerName) {
+	console.log('setStyleForVoyage')
+	console.log(mapboxKey[layerName]['map-id']);
+	console.log(mapboxKey[layerName]['source-layer']);
+	var newLayerName = layerName + "1";
+
+	for(var m in layerArray) {
+		if(layerFlagSource[layerArray[m]]) {
+			gl._glMap.removeSource(layerArray[m] + "1");
+			gl._glMap.removeLayer(layerArray[m] + "1");
+			layerFlagSource[layerArray[m]] = false;
+		}
+	}
+	layerFlagSource[layerName] = true;
+	gl._glMap.addSource(newLayerName, {
+        type: 'vector',
+        url: 'mapbox://' + mapboxKey[layerName]['map-id']
+    });
+	gl._glMap.addLayer({
+        "id": newLayerName,
+        "type": "line",
+        "source": newLayerName,
+        "source-layer": mapboxKey[layerName]['source-layer'],
+        "layout": {
+            "line-join": "round",
+            "line-cap": "round"
+        },
+        "filter":  filterValues,
+        "paint": {
+            "line-color": color,
+            "line-width": 2
+        }
+    });
+}
+function changeLabel(obj) {
+	console.log(obj.innerHTML)
+	if(obj.innerHTML == '+ ') {
+		obj.innerHTML = '- ';
+	}
+	else {
+		obj.innerHTML = '+ ';
+	}
+}
+function timeSeries() {
+	var searchVoyage = L.control({position: 'bottomleft'});
+	searchVoyage.onAdd = function(map) {
+		var div = L.DomUtil.create('div', 'searchVoyage');
+		div.setAttribute("id","timeSeriesMapId");
+		// var fromBottomPos = document.getElementById("map").offsetHeight - 400;
+		var fromBottomPos = 280;
+		div.setAttribute("style","min-width: 510px; height: 300px; margin: 0 auto;");
+		L.DomEvent.disableClickPropagation(div);
+		return div;
+	};
+	searchVoyage.addTo(map);
+}
+var selectedVoyageId = "";
+var selectedMmsi = "";
+function timeSeriesMap(id,mmsi) {
+	
+	var elem = document.getElementById('timeSeriesMapId');
+	if(elem != null) {
+    	elem.parentNode.removeChild(elem);
+	}
+	//To close Voyage popup details
+	var elem = document.getElementById('voyagePopupDetailsId');
+	console.log(elem);
+	if(elem != null) {
+    	elem.parentNode.removeChild(elem);
+	}
+	
+    timeSeries();
+    console.log("Time series map Id")
+	//document.getElementById('timeSeriesMapId').style.display = 'block';
+	document.getElementById('dateTimeCheckboxId').style.display = 'block';
+	selectedVoyageId = id;
+	selectedMmsi = mmsi;
+	
+	//closeVoyagePopup()
+	$(function () {
+	
+	     $.getJSON('timeseries/'+id+"_timeseries.json", function (data) {
+	        console.log(data)
+	    	 $('#timeSeriesMapId').highcharts({
+	            chart: {
+	                zoomType: 'x'
+	            },
+	            title: {
+	                text: 'Vessel Speed'
+	            },
+	            subtitle: {
+	                text: document.ontouchstart === undefined ?
+	                        'Click and drag in the plot area to zoom in' : 'Pinch the chart to zoom in'
+	            },
+	            xAxis: {
+	                type: 'datetime'
+	            },
+	            yAxis: {
+	                title: {
+	                    text: 'SOG (in knot)'
+	                }
+	            },
+	            legend: {
+	                enabled: false
+	            },
+	            plotOptions: {
+	                area: {
+	                    fillColor: {
+	                        linearGradient: {
+	                            x1: 0,
+	                            y1: 0,
+	                            x2: 0,
+	                            y2: 1
+	                        },
+	                        stops: [
+	                            [0, Highcharts.getOptions().colors[0]],
+	                            [1, Highcharts.Color(Highcharts.getOptions().colors[0]).setOpacity(0).get('rgba')]
+	                        ]
+	                    },
+	                    marker: {
+	                        radius: 2
+	                    },
+	                    lineWidth: 1,
+	                    states: {
+	                        hover: {
+	                            lineWidth: 1
+	                        }
+	                    },
+	                    threshold: null
+	                }
+	            },
+
+	            series: [{
+	                type: 'area',
+	                name: 'SOG',
+	                data: data
+	            }],
+	            
+	            exporting: {
+	                buttons: {
+	                    customButton: {
+	                        text: 'X',
+	                        onclick: function () {
+	                        	//closeTimeSeriesPopup();
+	                        	removeRedLine();
+	                        	var elem = document.getElementById('timeSeriesMapId');
+								if(elem != null) {
+    								elem.parentNode.removeChild(elem);
+								}
+								document.getElementById('dateTimeCheckboxId').style.display = 'none';
+								document.getElementById('timeSliderId').style.display = 'none';
+	                        }
+	                    }/*,anotherButton: {
+	                        text: 'A',
+	                        onclick: function () {
+	                        	drawVoyage(id,mmsi);
+	                        }
+	                    }*/
+	                }
+	            }
+	        });
+	    });
+	});
+}
+
+function voyagePopup() {
+	var searchVoyage = L.control({position: 'bottomleft'});
+	searchVoyage.onAdd = function(map) {
+		var div = L.DomUtil.create('div', 'searchVoyage1');		   
+		  div.setAttribute("id","voyagePopupDetailsId");
+		 //div.setAttribute("style","border-radius:5px;");
+		  div.setAttribute("style","min-width: 510px; height: 300px; margin: 0 auto;border-radius:5px;");
+		  L.DomEvent.disableClickPropagation(div);
+		   return div;
+	};
+	searchVoyage.addTo(map);
+}
+function getVoyageVesselPopupDetails(id) {
+	var elem = document.getElementById('voyagePopupDetailsId');
+	console.log("VoyageVesselDetail/"+id+"_details.json")
+	if(elem != null) {
+    	elem.parentNode.removeChild(elem);
+	}
+	
+	voyagePopup();    
+	
+	$.getJSON("VoyageVesselDetail/"+id+"_details.json",function(data){
+		//jsonFileMap['Jan_1'] = data;
+		//console.log(jsonFileMap['Jan_1'])
+		
+		var voyageDetails1 = '<label><b>MMSI &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: &nbsp;</b></label>' 
+		+ data['MMSI'] + '<br/><b>IMO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;</b>'
+		+ data['IMO'] + '<br/><b>CallSign &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;</b>' + data['CallSign'] + '<br/><b>Dimension &nbsp;:&nbsp;</b>'
+		+ data['DimensionComponents']+ '<br/><b>Width &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;</b>' + data['Width'] +
+		'<br/><b>Name &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;</b>' + data['Name'];
+		//'<br/><b>VesselType :&nbsp;</b>' + data['Type'];
+		
+		var vesselDetails = '<label><b>VoyageID &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;</b></label>' 
+			+ id + '<br/><b>Destination &nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;</b>'
+			+ data['Destination'] + '' +
+			'<br/><b>Draught &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;</b>'
+			+ data['Draught']+ '<br/><b>ETA &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;</b>' + data['ETA'] +
+			'<br/><b>StartTime &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;</b>' + data['StartTime'] +
+			'<br/><b>EndTime &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;</b>' + data['EndTime'];
+			
+			//var fromBottomPos = document.getElementById("map").offsetHeight - 30;
+		var fromBottomPos = 30
+			document.getElementById('voyagePopupDetailsId').innerHTML = '<div class="popover fade right in" role="tooltip" id="voyagePopupId" style="top: '+fromBottomPos+'px;height:260px;display: block;width:250px">'+
+		//document.getElementById('voyagePopupDetailsId').innerHTML = '<div style:top:200px><div class="popover fade right in" role="tooltip" id="voyagePopupId" style="height:560px;display: block;width:250px">'+
+		 '<h3 class="popover-title"><label onclick="closePopup(\'voyagePopupDetailsId\')" style="cursor: pointer;">×</label> Voyage Details<img src="images/time_series_icon_on_white.png" onclick="timeSeriesMap(\''+id+'\',\''+data['MMSI']+'\')" style="width:105px;padding-left:85px;cursor:pointer" /></h3><div class="popover-content"><div>'+
+		'<ul class="nav nav-tabs" style="font-size: 12px;"><li class="active"><a data-toggle="tab" href="#home">Vessel</a></li> <li><a data-toggle="tab" href="#menu1">Voyage</a></li></ul>'+
+		  //'<div class="tab-content"><div id="home" class="tab-pane fade in active"> <div style="width: 120px; float:left;font-size:12px"><br/>'+voyageDetails1+'</div><div style="margin-left: 120px;font-size:12px"><br/>'+voyageDetails2+'</div></div>'+
+		  '<div class="tab-content"><div id="home" class="tab-pane fade in active" style="font-size:12px"><br/>'+voyageDetails1+' </div>'+  //onclick="getShips('+type[index]['number']+')"
+		  '<div id="menu1" class="tab-pane fade" style="font-size:12px"><br/>'+
+	      vesselDetails+'</div>'
+		
+  })
+}
+var universalMonth = 0;
+function getMonthPopup() {
+	
+	
+	var monthName = ['All','All-Color','January','February','March','April','May','June','July','August','September','Octomber','November','December'];
+
+	
+	
+	$('[data-toggle="popoverMonth"]').popover({ html : true,content: function() {
+		closePopupOver('popoverMonth');
+		var dropDown  = "";
+		for(var key in monthName) {
+			if(universalMonth == key)
+				dropDown = dropDown + "<option value='"+key+"' selected>"+monthName[key]+"</option>";
+			else
+				dropDown = dropDown + "<option value='"+key+"'>"+monthName[key]+"</option>";
+		}
+		var data = '<div>'+
+					'<select id="universalMonthId" onchange="monthwise(this.value)">'+dropDown+' </select> </div>'
+		return data;
+	}});
+}
+function monthwise(key) {
+	removeRedLine();
+	totalCheckCheckboxes = [];
+	universalMonth = key;
+
+	console.log(key);
+	//console.log(layerArray[key-1]);
+	checkBoxStr = "";
+	selectList = "<option></option>"
+	var colors = ['blue','red','green','yellow','DarkKhaki','MediumSlateBlue','orange','LightSeaGreen','gray','maroon','black','violet']
+	for(var i in layerArray) {
+		
+		if(key == 0) {
+			//if(i != 1 && i != 3)
+				gl._glMap.setFilter(layerArray[i], ["==", "$type", "LineString"])
+				gl._glMap.setPaintProperty(layerArray[i], 'line-color', 'blue');
+		}
+		else if(key == 1) {
+			gl._glMap.setFilter(layerArray[i], ["==", "$type", "LineString"]);
+			gl._glMap.setPaintProperty(layerArray[i], 'line-color', colors[i]);
+		}
+		else {
+			if(i == (key-2) ) {
+				
+				console.log(layerArray[i])
+				gl._glMap.setFilter(layerArray[i], ["==", "$type", "LineString"])
+				universalLayerArray= [layerArray[i]]
+			}
+			else {
+				//if(i != 1 && i != 3)
+					gl._glMap.setFilter(layerArray[i], ["!=", "$type", "LineString"])
+			}
+		}
+	}
+	var fileName = "";
+	if(key == 0) {
+		fileName = "all_menu.json"
+		universalLayerArray = layerArray;
+	} else {
+		fileName = monthMenu[key - 2];
+	}
+	console.log(fileName)
+	$.getJSON("menu/"+fileName, function(dataLoad) {
+		//console.log(dataLoad)
+		var data = dataLoad.sort(function(a, b) {
+		    return a.MMSI - b.MMSI;
+		});
+		//console.log(data)
+		for(var key in data) {
+			
+			checkBoxStr = checkBoxStr +'<div style="color:white"><a data-toggle="collapse" data-parent="#accordion" href="#collapse_'+ data[key]['MMSI'] +'" style="color:white" onclick="changeLabel(this)">+ </a><span class="mmsiclass">'+data[key]['MMSI']+'</span></div>' +
+			'<span id="collapse_'+data[key]['MMSI']+'" class="panel-collapse collapse" style="color:white">';
+			var voyages =  data[key]['Voyages']
+			for(var idx in voyages) {
+				var voyage = voyages[idx];
+				checkBoxStr = checkBoxStr + "&nbsp;&nbsp;&nbsp;<input type='checkbox' id='"+voyage+"' class='chk_class' onclick='removeLayerContinuous(this.id,"+data[key]['MMSI']+")'>"+voyage+"</input> <br/>";
+				selectList = selectList + "<option>" + voyage+ "</option>";
+			}
+			checkBoxStr = checkBoxStr + '</span>';
+		}
+		document.getElementById('checkBoxDivId').innerHTML = checkBoxStr; 
+		document.getElementById('chkMMSIId').innerHTML =  "<select onchange='addNewVoyage(this)'>" + selectList + "</select><br/>";; 
+	});
+	
+}
+function getSearchPopup() {
+	
+	$('[data-toggle="popoverSearch"]').popover({ html : true,content: function() {
+		closePopupOver('popoverSearch');
+		$('[data-toggle=popoverSearch]').on('shown.bs.popover', function () {
+			  $('.popover')//.css('top',parseInt($('.popover').css('top')) + 60 + 'px')
+			 // .css('width',parseInt($('.popover').css('width')) + 200 + 'px')
+			 //.css('height',parseInt($('.popover').css('height')) + 200 + 'px')
+			 //.css('right',parseInt($('.popoverSearch').css('right')) + 200 + 'px')
+			  //.css('overflow','auto')
+			})
+			
+			/*2 Europe (e.g., Italy has MID 247; Denmark has MIDs 219 and 220)
+3 North and Central America and Caribbean (e.g., Canada, 316; Panama, 351, 352, 353, 354, 355, 356, 357, 370, 371, 372, and 373)
+4 Asia (e.g., PRC, 412, 413, and 414; Maldives, 455)
+5 Oceania (Australia, 503)
+6 Africa (Eritrea, 625)
+7 South America (Peru, 760)*/
+			
+		var dropDown = '<br/> Options : <select onchange="getSerachText(this.value)"><option></option><option>Destination</option><option value="Name">Vessel Name</option><option>IMO</option><option>MMSI</option></select><div id="searchTextId"></div>'
+		var region = '<br/> Region : <select onchange="getRegionFilter(this.value)" style="width:100px"><option></option><option value="2">Europe</option><option value="3">North and Central America and Caribbean</option><option value="4">Asia</option><option value="5">Oceania</option>'+
+			'<option value="6">Africa</option><option value="7">South America</option></select><div id="searchTextId"></div>'
+		var data = '<div style="width:190px;height: 130px">'+
+		 '<h3 class="popover-title"><label onclick="closeVoyagePopup()" style="cursor: pointer;">×</label> Voyage Details<img src="images/time_series_icon_on_white.png" style="width:105px;padding-left:85px;cursor:pointer" /></h3><div class="popover-content"><div>'+
+			'<ul class="nav nav-tabs" style="font-size: 10px;"><li class="active"><a data-toggle="tab" href="#search1">Vessel</a></li> <li><a data-toggle="tab" href="#search2">Region</a></li></ul>'+
+			  //'<div class="tab-content"><div id="home" class="tab-pane fade in active"> <div style="width: 120px; float:left;font-size:12px"><br/>'+voyageDetails1+'</div><div style="margin-left: 120px;font-size:12px"><br/>'+voyageDetails2+'</div></div>'+
+			  '<div class="tab-content"><div id="search1" class="tab-pane fade in active" style="font-size:12px;color:black">'+dropDown+'</div>'+  //onclick="getShips('+type[index]['number']+')"
+			  '<div id="search2" class="tab-pane fade" style="font-size:12px;color:black">'+region+'</div></div>'+ 
+		      '</div>'
+        return data;
+    }});
+}
+function getSerachText(val) {
+	
+	if(val == 'Destination') {
+		
+		var destDropDown = "<option></option>"
+		$.getJSON("destination/destination.json",function(data){
+			
+			for(var i in data) {
+				destDropDown = destDropDown + "<option>"+data[i]+"</option>"
+			}
+			document.getElementById('searchTextId').innerHTML = "<br/><select onchange='destChange(this.value)'>"+destDropDown+"</select>"
+		})
+	}
+	else {
+		document.getElementById('searchTextId').innerHTML = '<br/><input id="optionTextId" type="text" size="18" style="border-radius:1px;border-color:#218BFD"/> <button type="button" style="background-color:white;color:#065785;border-radius:4px;" onclick="searchAsPerOption(\''+val+'\')">Ok</button>'
+	}
+}
+function destChange(val) {
+	removeRedLine();
+	for(var key in universalLayerArray) {
+		gl._glMap.setFilter(universalLayerArray[key], ['in', 'Destination' , val])
+	}
+}
+function getRegionFilter(val) {
+	removeRedLine();
+if(val == '2') {
+	 for(var key in universalLayerArray) {
+		gl._glMap.setFilter(universalLayerArray[key], ['in', 'Type' , 20,21,22,23,24,25,26,27,28,29])
+	 }
+}
+else if(val == '3') {
+	for(var key in universalLayerArray) {
+		gl._glMap.setFilter(universalLayerArray[key], ['in', 'Type' ,  30,31,32,33,34,35,36,37,38,39])
+	}
+}
+else if(val == '4') {
+	for(var key in universalLayerArray) {
+		gl._glMap.setFilter(universalLayerArray[key], ['in', 'Type' , 40,41,42,43,44,45,46,47,48,49])
+	}
+}
+else if(val == '5') {
+	for(var key in universalLayerArray) {
+			gl._glMap.setFilter(universalLayerArray[key], ['in', 'Type' ,  50,51,52,53,54,55,56,57,58,59])
+	}
+}
+else if(val == '6') {
+	for(var key in universalLayerArray) {
+		gl._glMap.setFilter(universalLayerArray[key], ['in', 'Type' ,  60,61,62,63,64,65,66,67,68,69])
+	}
+}
+else if(val == '7') {
+	for(var key in universalLayerArray) {
+		gl._glMap.setFilter(universalLayerArray[key], ['in', 'Type' ,  70,71,72,73,74,75,76,77,78,79])
+	}
+}
+
+console.log("val : "+val)
+}
+function searchAsPerOption(val) {
+	removeRedLine();
+   /*if(val == 'Destination') {
+	   if(document.getElementById('optionTextId').value.toUpperCase() == 'BOSTON') {
+		   
+			for(var key in universalLayerArray) {
+		   		gl._glMap.setFilter(universalLayerArray[key], ['in', val , 'BOSTON','BOSTON MA','BOSTON,MA','BOSTON USA','BOSTON,MASS','BOSTON ROAD'])
+			}
+	   }
+	   else if(document.getElementById('optionTextId').value.toUpperCase() == 'PROVIDENCE') {
+		   
+		   for(var key in universalLayerArray) {
+		   		gl._glMap.setFilter(universalLayerArray[key], ['in', val ,'PROVINCETOWN, MASS','PROVIDENCE, USA','PROVIDENCE RI','PROVIDECE','PROVIDENCE','PROVIDENS,USA','PROVIDENCE,RI','PROVIDENCE RHODE IS','PROVIDENCE,RI.'])
+		   }
+	   }
+	   else if(document.getElementById('optionTextId').value.toUpperCase() == 'NEW YORK') {
+		   for(var key in universalLayerArray) {
+		   		gl._glMap.setFilter(universalLayerArray[key], ['in', val , 'NEW YORK','NEW YORK CITY','NEWARK','NEWYORK','NEW.YORK','NEW YORK STAPELTON'])
+		   }
+	   }
+	   else if(document.getElementById('optionTextId').value.toUpperCase() == 'NEWBEDFORD'|| document.getElementById('optionTextId').value.toUpperCase() == 'NEW BEDFORD') {
+		   for(var key in universalLayerArray) {
+		   		gl._glMap.setFilter(universalLayerArray[key], ['in', val , 'NEWBEDFORD MA','NEWBEDFORD MA','NEW BEDFORD','NEW       BEDFORD'])
+		   }
+	   }
+	   else if(document.getElementById('optionTextId').value.toUpperCase() == 'FALL RIVER') {
+		   for(var key in universalLayerArray) {
+		   		gl._glMap.setFilter(universalLayerArray[key], ['in', val , 'FALL RIVER'])
+		   }
+	   }
+	   else {
+		   for(var key in universalLayerArray) {
+		   		gl._glMap.setFilter(universalLayerArray[key], ['in', val , document.getElementById('optionTextId').value.toUpperCase()]);
+		   }
+	   }
+   }
+	
+   else {*/
+	  
+   		//console.log(['in', val , document.getElementById('optionTextId').value])
+   		if(val == 'MMSI' || val == 'IMO') {
+   			var y = parseInt(document.getElementById('optionTextId').value);
+   			for(var key in universalLayerArray) {
+   				//gl._glMap.setFilter('jan-voyages', ['in', val , y])
+   				gl._glMap.setFilter(universalLayerArray[key], ['in', val , y])
+   			}
+   		}
+   		/*else if(val = 'IMO') {
+   			var y = parseInt(document.getElementById('optionTextId').value);
+   			console.log('IMO : ' + y)
+   			gl._glMap.setFilter('jan-voyages', ['in', val , y])
+   		}*/
+   		else {
+   			console.log("..... : " + val)
+   			for(var key in universalLayerArray) {
+				gl._glMap.setFilter(universalLayerArray[key], ['==', val , document.getElementById('optionTextId').value])
+   			}
+   		}
+   /*}*/	
+}
+/*	
+function closeVoyagePopup() {
+	document.getElementById('voyagePopupId').style.display = 'none';
+}
+function closeTimeSeriesPopup() {
+	document.getElementById('timeSeriesMapId').style.display = 'none';
+}*/
+//voyagePopup()
+//timeSeries();
+getSearchPopup();
+getMonthPopup();
+// add mapbox-gl-draw controls
+
+//gl._glMap.addControl(new mapboxgl.Navigation({ position: 'top-left'}));
+
+/*
+var Draw = mapboxgl.Draw({controls : { marker: false, line: false, shape: false, square: true }});
+gl._glMap.addControl(Draw);
+
+gl._glMap.on('draw.set', function (e) {
+	console.log("Created");
+	document.getElementById('squareDrawBtn').disabled = true;
+})
+gl._glMap.on('draw.delete', function (e) {
+	var type = e.layerType,layer = e.layer;
+	console.log("Delete........")
+	document.getElementById('squareDrawBtn').disabled = false;
+});
+gl._glMap.on('draw.select.start', function (e) {
+	var type = e.layerType,layer = e.layer;
+	console.log("start........")
+
+});
+gl._glMap.on('draw.select.end', function (e) {
+	var type = e.layerType,layer = e.layer;
+	console.log("draw.select.end........")
+});
+*/
+var drawnItems = new L.FeatureGroup();
+map.addLayer(drawnItems);
+
+var rectDrawer = new L.Draw.Rectangle(map);
+
+var selectRegion = L.control({position: 'topleft'});
+selectRegion.onAdd = function(map){
+		  var div = L.DomUtil.create('div', 'searchVoyage');
+		  div.setAttribute("id","regionSelectId");
+		//  div.innerHTML = "<input type='button' id='draw_poly' style='display:block' value='+'/><input type='button' id='delete_poly' style='display:none' value='-'/>";
+		  div.innerHTML = "<img src='images/arrow.png' class='ok' id='draw_poly' style='width:16px;height:16px'>";
+		// "<img src='arrow.png' id='delete_poly' style='display:none' class='ok' style='width:16px;height:16px'>";
+		// div.innerHTML = "<img src='time.jpeg' class='ok' id='dateFilterchkid' onclick='enableDateTimeFilter()' style='width:20px;height:20px'>"
+		// div.setAttribute("style","width:16px")
+		 L.DomEvent.disableClickPropagation(div);
+		div.setAttribute("style","top:5px");  
+		return div;
+};
+
+selectRegion.addTo(map);
+var selectFlag = true;
+$('#draw_poly').click(function() {
+ 	console.log("Clicked.....")
+ 	removeRedLine();
+ 	if(selectFlag) {
+ 		rectDrawer.enable();
+ 		/*for(var key in maplayer) {
+	 		map.removeLayer(maplayer[key]);
+ 		})*/
+ 		selectFlag = false;
+ 	}
+ 	else {
+ 		if(layerDelete != '') {
+ 		 	map.removeLayer(layerDelete);
+ 		 	layerDelete = ''
+ 		 }
+ 		selectFlag = true;
+ 	}
+ //	$('#draw_poly').hide()
+ //	$('#delete_poly').show()
+ 
+});
+
+map.on('draw:deleted', function(e) {
+    console.log("Delete")
+});
+
+/*$('#delete_poly').click(function() {
+	 //rectDrawer.disable();
+	 if(layerDelete != '') {
+	 	map.removeLayer(layerDelete);
+	 	layerDelete = ''
+	 }
+	 $('#draw_poly').show()
+	 $('#delete_poly').hide()	 
+});*/
+var layerDelete ='';
+var selectFlagVectorLoad = false;
+map.on('draw:created', function (e) {
+	console.log('created....')
+	 var type = e.layerType;
+	 layerDelete = e.layer;
+
+/*e.layer.on('click', function() {
+		 e.layer.editing.enable();
+	 })*/
+	 
+	/* e.layer.on('edit', function(e) {
+		 console.log('EDIT..hsk....')	
+		 console.log(e.target.editing)
+		  console.log(e.target.edited)
+     })*/
+     e.layer.on('create', function(e) {
+		 console.log('cerwtu..hsk....')	
+		 console.log(e)
+     })
+   	drawnItems.addLayer(layerDelete);     
+    var bounds = e.layer.getBounds();
+    
+   // console.log(bounds)
+   //*  */ console.log(bounds._southWest.lat)
+    
+    console.log(e)
+	console.log(layerDelete)
+	var cordinates =layerDelete._originalPoints; 
+		//[[fisrtCorner.x,fisrtCorner.y],[thirdCorner.x,thirdCorner.y]]
+	//console.log("wwwwwwww..")
+	//console.log(e)
+	//gl._glMap.setPaintProperty('jan-voyages', 'line-opacity', 0.1);
+	//addVectorLayer('blue');
+	var l_name = 'jan-voyages';
+	//gl._glMap.setPaintProperty('jan-voyages', 'line-opacity', 0);
+	/*if(selectFlagVectorLoad) {
+		//gl._glMap.setFilter ('jan-voyages', ['in','voyage'])
+		var l_name = 'jan-voyages';
+		addVectorLayer('red')
+		
+	} else {
+		
+	}*/
+	
+	//console.log(layerDelete.getBounds().getCenter())
+	
+	//console.log(gl._glMap.unproject([cordinates[1].x, cordinates[1].y]))
+	//console.log(gl._glMap.unproject([cordinates[3].x, cordinates[3].y]))
+	//gl._glMap.fitBounds([gl._glMap.unproject([cordinates[1].x, cordinates[1].y]),gl._glMap.unproject([cordinates[3].x, cordinates[3].y])])
+//	gl._glMap.fitBounds([[bounds._southWest.lng,bounds._southWest.lat],[bounds._northEast.lng,bounds._northEast.lat]])
+//map.fitBounds([[e.layer._latlngs[0].lat,e.layer._latlngs[0].lng],[e.layer._latlngs[2].lat,e.layer._latlngs[2].lng]])
+	/*gl._glMap.flyTo({
+	        center: layerDelete.getBounds().getCenter()
+	    });
+	//gl._glMap.setPaintProperty('jan-voyages', 'line-opacity', );
+	//gl._glMap.setLayoutProperty ('jan-voyages', 'visibility', 'visible')
+	/*console.log([bounds._northEast.lat,bounds._northEast.lng],[bounds._southWest.lat,bounds._southWest.lng])
+	gl._glMap.fitBounds([[bounds._southWest.lng,bounds._southWest.lat],[bounds._northEast.lng,bounds._northEast.lat]])
+	console.log(l_name)
+	gl._glMap.featuresIn([[cordinates[1].x, ],[cordinates[3].x,cordinates[3].y]], {layer: l_name}, function(err, features) {
+		 console.log(features.length);
+		 var ok = [];
+	    	ok.push("in");
+	    	ok.push("voyage");
+	    	for(var i in features) {
+	    		
+	    		if(features[i].properties.voyage != undefined) {
+	    			ok.push(features[i].properties.voyage)
+	    		}
+	    	}
+	    	console.log(ok);
+	    	//gl._glMap.setPaintProperty('jan-voyages', 'line-opacity', 1);
+	    	//gl._glMap.setFilter(l_name, ok)
+	    	//setStyleForVoyage(ok, 'blue')
+	});
+	
+	selectFlagVectorLoad = true;*/
+	
+	//console.log("problem....");
+	//console.log(gl._glMap.unproject([cordinates[1].x, cordinates[1].y]))
+	//console.log(gl._glMap.unproject([cordinates[3].x, cordinates[3].y]))
+	//[bounds._northEast.lat,bounds._northEast.lng],[bounds._southWest.lat,bounds._southWest.lng]
+	//console.log(gl._glMap.project([bounds._northEast.lat,bounds._northEast.lng]))
+	//console.log([cordinates[0].x, cordinates[0].y])
+	///gl._glMap.setFilter('jan-voyages', ["==", "$type", "LineString"])
+	
+	console.log(layerDelete._originalPoints)
+	/*new mapboxgl.Popup()
+    .setLngLat(gl._glMap.unproject([cordinates[0].x, cordinates[0].y]))
+    .setHTML("0")
+    .addTo(gl._glMap);
+	
+	new mapboxgl.Popup()
+	.setLngLat(gl._glMap.unproject([cordinates[1].x, cordinates[1].y]))
+    .setHTML("1")
+    .addTo(gl._glMap);
+	
+	new mapboxgl.Popup()
+	.setLngLat(gl._glMap.unproject([cordinates[2].x, cordinates[2].y]))
+    .setHTML("2")
+    .addTo(gl._glMap);
+	
+	new mapboxgl.Popup()
+	.setLngLat(gl._glMap.unproject([cordinates[3].x, cordinates[3].y]))
+    .setHTML("3")
+    .addTo(gl._glMap);*/
+    console.log(layerDelete._latlngs[0])
+    console.log("ooooooommm....")
+    var a1 = gl._glMap.project([layerDelete._latlngs[0].lng,layerDelete._latlngs[0].lat]);
+    var a2 = gl._glMap.project([layerDelete._latlngs[2].lng,layerDelete._latlngs[2].lat])
+    console.log(a1)
+    console.log(a2)
+    
+   /* new mapboxgl.Popup()
+    .setLngLat(layerDelete._latlngs[0])
+    .setHTML("0")
+    .addTo(gl._glMap)*/
+    
+	gl._glMap.featuresIn([[a1.x,a1.y],[a2.x,a2.y]], {layer: 'jan-voyages'}, function(err, features) {
+	//gl._glMap.featuresIn([layerDelete._originalPoints[0],layerDelete._originalPoints[2]], {layer: universalLayerArray}, function(err, features) {
+	//gl._glMap.featuresIn([[cordinates[1].x, cordinates[1].y],[cordinates[3].x,cordinates[3].y]], {layer: 'jan-voyages'}, function(err, features) {
+		// console.log(features);
+		
+	    	var cnt = 0
+	    	var type = { 2 : {'number' : 2, 'name' : 'Wing In Ground', 'total' : cnt},
+			           30 : {'number' : 30, 'name' : 'Fishing' , 'total' : cnt},
+			           31 : {'number' : 31, 'name' : 'Tug', 'total' : cnt},
+			           32 : {'number' : 32, 'name' : 'Tug(l>200m b>25m)', 'total' : cnt},
+			           33 : {'number' : 33, 'name' : 'Dredger(UW)', 'total' : cnt},
+			           34 : {'number' : 34, 'name' : 'Diving Ops', 'total' : cnt},
+			           35 : {'number' : 35, 'name' : 'Military Ops', 'total' : cnt},
+			           36 : {'number' : 36, 'name' : 'Sailing Vessel', 'total' : cnt},
+			           37 : {'number' : 37, 'name' : 'Pleasure Craft', 'total' : cnt},
+			           4 : {'number' : 4, 'name' : 'High-Speed Craft', 'total' : cnt},
+			           5 : {'number' : 5, 'name' : 'Craft', 'total' : cnt},
+			           6 : {'number' : 6, 'name' : 'Passenger', 'total' : cnt},
+			           7 : {'number' : 7, 'name' : 'Cargo', 'total' : cnt},
+			           8 : {'number' : 8, 'name' : 'Tanker', 'total' : cnt},
+			           //9 : {'number' : 9, 'name' : 'Other', 'total' : cnt}}
+			           0 : {'number' : 9, 'name' : 'Other', 'total' : cnt}
+			           }
+	    	
+			var ok = [];
+	    	ok.push("in");
+	    	ok.push("voyage");
+	    	
+	    	var selectBox = "<option></option>";
+	    	for(var i in features) {
+	    		
+	    	 if(features[i].properties.voyage != undefined) {
+	    		 
+	    		 
+	    		if(ok.indexOf(features[i].properties.voyage) == -1) {
+	    			ok.push(features[i].properties.voyage)
+	    			console.log(features[i])
+	    			console.log(features[i].properties.voyage)
+	    			var s_type = features[i].properties.Type+"";
+	    			///console.log(type[s_type])
+	    			if(type[s_type] != undefined) {
+	    				if(s_type.charAt(0) == 3) {
+	    					type[s_type].total = type[s_type].total + 1;
+	    				} else {
+	    					
+	    					//console.log(type[s_type] != 'undefined')
+	    					type[s_type.charAt(0)].total = type[s_type.charAt(0)].total + 1;
+	    				}
+	    			} else {
+	    				type[0].total = type[0].total + 1;
+	    			}
+	    			selectBox = selectBox + '<option>'+features[i].properties.voyage+'</option>';
+	    		 } else {console.log("present....hh..") }
+	    	 } 
+	    	}
+	    	//console.log(ok);
+	    	//gl._glMap.setFilter('jan-voyages', ok);
+	    	var totalVoyage = ok.length - 2; //MINUS - AND VOYAGE
+	    	
+	    	
+	    	var shipCountLabel = ""
+	    	for(var key in type) {
+	    		shipCountLabel = shipCountLabel + "" + type[key]['name'] + " : " + type[key]['total'] + "<br/>"
+	    	}
+	    	//console.log(shipCountLabel)
+	    	var elem = document.getElementById('spatialRegionId');
+			if(elem != null) {
+    			elem.parentNode.removeChild(elem);
+			}
+	
+	    	spatialPopup()
+	    	document.getElementById('spatialRegionId').innerHTML = "<div style='color : white'>Total Voyages : " + totalVoyage + "&nbsp;&nbsp;&nbsp;&nbsp;<span style='color : black;cursor:pointer' onclick='closePopup(\"spatialRegionId\");loadSelect()'>X</span> </br><div style='color : white'>" + shipCountLabel + "</div></div>";
+	    	//div.innerHTML =   "<select onchange='addNewVoyage(this)'>" + selectList + "</select><br/>";
+	    	document.getElementById('chkMMSIId').innerHTML = "<select onchange='addNewVoyage(this)'>" + selectBox + "</select><br/>";
+	    	//gl._glMap.setPaintProperty('jan-voyages', 'line-opacity', 1);
+	    	//gl._glMap.setFilter('jan-voyages', ok)
+	    	//setStyleForVoyage(ok, 'red')
+	    	//setStyleForVoyage(ok, 'blue')
+	    	//setStyleForVoyage(ok, 'blue')
+	});
+	//console.log("aaaaaaa")
+	//gl._glMap.setFilter('jan-voyages', ok)
+	//setStyleForVoyage(ok, 'blue')
+	//gl._glMap.setFilter('jan-voyages', ['in', val , document.getElementById('optionTextId').value])
+	
+	 //map.fitBounds(gl._glMap.setFilter('jan-voyages', ['in', 'voyage', 'Jan_1']));
+	//gl._glMap.setFilter('jan-voyages', ['in', val , document.getElementById('optionTextId').value])
+	//console.log(map.getBounds())
+	//tempMap.featuresAt(e.layerPoint, {layer: 'jan-voyages', radius: 5, includeGeometry: true}, function (err, features) {
+	
+});
+function loadSelect() {
+	document.getElementById('chkMMSIId').innerHTML = "<select onchange='addNewVoyage(this)'>" + selectList + "</select><br/>";
+}
+
+///gl._glMap.setFilter ('jan-voyages', ["in","voyage"]);
+//addVectorLayer('blue')
+map.on('draw:edited', function (e) {
+	var type = e.layerType,layer = e.layer;
+	console.log("Edit 22222222........")
+
+});
+
+function loadAllVoyages() {
+	console.log("loadAllVoyages...11.....");
+	gl._glMap.setFilter('jan-voyages', ["==", "$type", "LineString"]);
+	
+	//gl._glMap.removeSource("Jan_Voyages");
+	/*if(!document.getElementById('allChkId').checked) {
+		gl._glMap.removeSource("Jan_Voyages1");
+		gl._glMap.removeLayer("Jan_Voyages1");
+	}
+	else {
+		console.log("All cheked8wwww99")
+		gl._glMap.addSource("Jan_Voyages1", {
+	        type: 'vector',
+	        url: 'mapbox://nileshbhadane123.70c82178'
+	    });
+		gl._glMap.addLayer({
+	        "id": "Jan_Voyages1",
+	        "type": "line",
+	        "source": "Jan_Voyages1",
+	        "source-layer": "Jan_Voyages",
+	        "layout": {
+	            "line-join": "round",
+	            "line-cap": "round"
+	        },
+	        "paint": {
+	            "line-color": 'blue',
+	            "line-width": 1
+	        }
+	    }
+		);
+	}*/
+	
+}
+/*gl._glMap.on('style.load', function () {
+	console.log("Loading..11...")
+	gl._glMap.setFilter('jan-voyages', ['in','voyage'])
+	gl._glMap.addSource("Jan_Voyages1", {
+        type: 'vector',
+        url: 'mapbox://nileshbhadane123.70c82178'
+    });
+	gl._glMap.addLayer({
+        "id": "Jan_Voyages1",
+        "type": "line",
+        "source": "Jan_Voyages1",
+        "source-layer": "Jan_Voyages",
+        "layout": {
+            "line-join": "round",
+            "line-cap": "round"
+        },
+        "paint": {
+            "line-color": 'blue',
+            "line-width": 1
+        }
+    }
+	);
+	gl._glMap.setFilter('jan-voyages', ["==", "$type", "LineString"])
+	flagSource = true;
+})*/
+function spatialPopup() {
+	var searchVoyage = L.control({position: 'topleft'});
+	searchVoyage.onAdd = function(map) {
+		var div = L.DomUtil.create('div', 'searchVoyage');
+		
+			  div.setAttribute("id","spatialRegionId");
+		 //div.setAttribute("style","border-radius:5px;");
+		  div.setAttribute("style","top : 4px");
+		  L.DomEvent.disableClickPropagation(div);
+		  return div;
+	};
+	searchVoyage.addTo(map);
+}
+
+function closePopup(id) {
+	console.log("closePopup ...")
+	removeRedLine();
+	var elem = document.getElementById(id);
+	if(elem != null) {
+    	elem.parentNode.removeChild(elem);
+	}
+}
+
+function addNewVoyage(id) {
+	clickVoyage(id.value, mapMonthLayer[id.value.substring(0,3).toLowerCase()]);
+}
+
+function removeRedLine() {
+	/*if(flagSource) {
+		console.log("Romove removeRedLine.....")
+		gl._glMap.removeSource("Jan_Voyages1");
+		gl._glMap.removeLayer("Jan_Voyages1");
+	}
+	flagSource = false;*/
+	if(marker != "") {
+		map.removeLayer(marker);
+		marker = ""
+	}
+	for(var m in layerArray) {
+		if(layerFlagSource[layerArray[m]]) {
+			gl._glMap.removeSource(layerArray[m] + "1");
+			gl._glMap.removeLayer(layerArray[m] + "1");
+			layerFlagSource[layerArray[m]] = false;
+		}
+	}
+}
+gl._glMap.off('style.error', map.onError);
+gl._glMap.off('source.error', map.onError);
+gl._glMap.off('tile.error', map.onError);
+//spatialPopup()
+function closePopupOver(popupName) {
+ 	var hidePopup = ['popoverSearch', 'popoverMonth', 'popover'];
+ 	var i = hidePopup.indexOf(popupName);
+	if(i!=-1) {
+		hidePopup.splice(i, 1);
+	}
+	console.log(hidePopup);
+	for(var k in hidePopup) {
+		$("[data-toggle='" + hidePopup[k] + "']").popover('hide');
+	}
+}
+</script>
+</body>
+</html>
