@@ -130,6 +130,11 @@ circle.marker {
     position: relative;
     z-index: 1;
 }
+.mapboxgl-popup {
+        width: 40px;
+        height: 10px; 
+       text-align: center;
+}  
 </style>
 </head>
 
@@ -138,13 +143,14 @@ circle.marker {
 <label style="font-size: 30px">
 &nbsp;&nbsp;Marine Traffic Interactive Interface 
 </label>
- <div class="btn-group btn-group-xs" style="padding-left: 630px">
+ <div class="btn-group btn-group-xs" style="padding-left: 600px">
 
     <img src="images/sea.gif" data-toggle='popoverSearch' data-content='' data-placement="bottom" class="btn btn-primary" style="color:black;background-color:white;width:32px;height:24px"></img>
    <!--  <img src="setting.png"  class="btn btn-primary" style="color:black;background-color:white;width:32px;height:24px"></img>-->
     <img src="images/print.png"  class="btn btn-primary" onclick="window.print()" style="color:black;background-color:white;width:32px;height:24px"></img> 
   <!-- <img src="share.png"  class="btn btn-primary" style="color:black;background-color:white;width:32px;height:24px" onclick="loadAllVoyages()"></img> -->
   <img src="images/share.png" data-toggle='popoverMonth' data-content='' data-placement="bottom" class="btn btn-primary" style="color:black;background-color:white;width:32px;height:24px"></img>
+    <img src="images/star.png" onclick="starClick()" class="btn btn-primary" style="color:black;background-color:white;width:32px;height:24px"></img>
   </div>
 </div>
 <div id="map"></div>
@@ -173,6 +179,76 @@ map.on('mousemove', function (e) {
 	})
 	
 })
+var starCliked = false;
+var popup = "";
+function starClick() {
+	popup = new mapboxgl.Popup({
+	    closeButton: false,
+	    closeOnClick: false
+	});
+		map.on('mousemove', function (e) {
+			gl._glMap.featuresAt(e.containerPoint, {layer: layerArray, radius: 2}, function (err, features) {
+				//gl._glMap.getCanvas().style.cursor = (!err && features.length) ? 'pointer' : '';
+				
+				if(starCliked) {
+				 if((!err && features.length)) {
+					
+					var ln = features[features.length - 1].layer.id;
+					var notIndex = layerArray.indexOf(ln);
+			
+					for(var i in layerArray) {
+						if(i != notIndex) {
+							gl._glMap.setPaintProperty(layerArray[i], 'line-color', "blue");
+						}
+					}
+					gl._glMap.setPaintProperty(ln, 'line-color', "yellow");
+					setStyleForVoyage(["==", "$type", "LineString"], 'yellow', ln, 1);
+					var longLat = gl._glMap.unproject([e.containerPoint.x, e.containerPoint.y])
+					console.log(ln.toUpperCase());
+					popup.setLngLat([longLat.lng,longLat.lat])
+		            .setText((ln.substring(0,3)).toUpperCase())
+		            .addTo(gl._glMap);
+					
+				} else {
+					console.log(popup)
+					popup.setLngLat([-1,-1]);
+					for(var m in layerArray) {
+						if(layerFlagSource[layerArray[m]]) {
+							gl._glMap.removeSource(layerArray[m] + "1");
+							gl._glMap.removeLayer(layerArray[m] + "1");
+							layerFlagSource[layerArray[m]] = false;
+							gl._glMap.setPaintProperty(layerArray[m], 'line-color', "blue");
+						}
+					}
+				}
+			 }
+				else {
+					gl._glMap.getCanvas().style.cursor = (!err && features.length) ? 'pointer' : '';
+				}
+			})
+		})
+		
+		if(!starCliked) {
+			starCliked = true;
+		}
+		else {
+			clearMouseUpSelection();
+		}
+}
+function clearMouseUpSelection() {
+	starCliked = false;
+	if(popup != "") {
+		popup.setLngLat([-1,-1]);
+	}
+	for(var m in layerArray) {
+		if(layerFlagSource[layerArray[m]]) {
+			gl._glMap.removeSource(layerArray[m] + "1");
+			gl._glMap.removeLayer(layerArray[m] + "1");
+			layerFlagSource[layerArray[m]] = false;
+			gl._glMap.setPaintProperty(layerArray[m], 'line-color', "blue");
+		}
+	}
+}
 var layerArray = ['jan-voyages','feb-voyages','march-voyages','apr-voyages','may-voyages','jun-voyages','jul-voyages','aug-voyages','sep-voyages','oct-voyages','nov-voyages','dec-voyages'];
 var layerFlagSource = {'jan-voyages' : false,'feb-voyages' : false,'march-voyages' : false,'apr-voyages' : false,'may-voyages' : false,'jun-voyages' : false,'jul-voyages' : false,'aug-voyages' : false,'sep-voyages' : false,'oct-voyages' : false,'nov-voyages' : false,'dec-voyages' : false};
 var allMonths = ['jan','feb','march','apr','may','jun','jul','aug','sep','oct','nov','dec'];
@@ -192,6 +268,7 @@ var mapboxKey = {'jan-voyages' : {'source-layer' : 'jan_voyages' , 'map-id' : 'n
 				 'nov-voyages' : {'source-layer' : 'nov_voyages' , 'map-id' : 'nileshbhadane123.76477e9a'},
 				 'dec-voyages' : {'source-layer' : 'dec_voyages' , 'map-id' : 'nileshbhadane123.a2b14905'}}
 map.on('click', function (e) {
+	clearMouseUpSelection();
 	//console.log(e)
 	if(polyline != '') {
 		map.removeLayer(polyline);
@@ -568,6 +645,7 @@ function storeJsonFileToMemory() {
 }
 var totalCheckCheckboxes = [];
 function removeLayerContinuous(id, mmsi) {
+	clearMouseUpSelection();
 	if(document.getElementById(id).checked) {
 		totalCheckCheckboxes.push(id);
 	} else {
@@ -628,6 +706,7 @@ function addDropDownControl() {
 }
 var checkChekboxes = ['in', 'voyage'];
 function removeLayer(id, mmsi) {
+	clearMouseUpSelection();
 	if(document.getElementById(id).checked) {
 		checkChekboxes.push(id);
 	} else {
@@ -689,11 +768,11 @@ function clickVoyage(id, layerName) {
 	console.log(layerName);
 	gl._glMap.setPaintProperty(layerName, 'line-color', 'blue');
 	gl._glMap.setPaintProperty(layerName, 'line-opacity', 1);
-	setStyleForVoyage(['in', 'voyage', id], 'red', layerName);
+	setStyleForVoyage(['in', 'voyage', id], 'red', layerName, 2);
 	getVoyageVesselPopupDetails(id)
 }
 //var flagSource = false;
-function setStyleForVoyage(filterValues, color, layerName) {
+function setStyleForVoyage(filterValues, color, layerName, width) {
 	console.log('setStyleForVoyage')
 	console.log(mapboxKey[layerName]['map-id']);
 	console.log(mapboxKey[layerName]['source-layer']);
@@ -723,11 +802,12 @@ function setStyleForVoyage(filterValues, color, layerName) {
         "filter":  filterValues,
         "paint": {
             "line-color": color,
-            "line-width": 2
+            "line-width": width
         }
     });
 }
 function changeLabel(obj) {
+	clearMouseUpSelection();
 	console.log(obj.innerHTML)
 	if(obj.innerHTML == '+ ') {
 		obj.innerHTML = '- ';
@@ -914,7 +994,7 @@ function getVoyageVesselPopupDetails(id) {
 var universalMonth = 0;
 function getMonthPopup() {
 	
-	
+	clearMouseUpSelection();
 	var monthName = ['All','All-Color','January','February','March','April','May','June','July','August','September','Octomber','November','December'];
 
 	
@@ -999,7 +1079,7 @@ function monthwise(key) {
 	
 }
 function getSearchPopup() {
-	
+	clearMouseUpSelection();
 	$('[data-toggle="popoverSearch"]').popover({ html : true,content: function() {
 		closePopupOver('popoverSearch');
 		$('[data-toggle=popoverSearch]').on('shown.bs.popover', function () {
@@ -1209,6 +1289,7 @@ selectRegion.addTo(map);
 var selectFlag = true;
 $('#draw_poly').click(function() {
  	console.log("Clicked.....")
+ 	clearMouseUpSelection();
  	removeRedLine();
  	if(selectFlag) {
  		rectDrawer.enable();
@@ -1537,6 +1618,7 @@ function spatialPopup() {
 }
 
 function closePopup(id) {
+	clearMouseUpSelection();
 	console.log("closePopup ...")
 	removeRedLine();
 	var elem = document.getElementById(id);
@@ -1546,6 +1628,7 @@ function closePopup(id) {
 }
 
 function addNewVoyage(id) {
+	clearMouseUpSelection();
 	clickVoyage(id.value, mapMonthLayer[id.value.substring(0,3).toLowerCase()]);
 }
 
@@ -1573,6 +1656,7 @@ gl._glMap.off('source.error', map.onError);
 gl._glMap.off('tile.error', map.onError);
 //spatialPopup()
 function closePopupOver(popupName) {
+	clearMouseUpSelection();
  	var hidePopup = ['popoverSearch', 'popoverMonth', 'popover'];
  	var i = hidePopup.indexOf(popupName);
 	if(i!=-1) {
